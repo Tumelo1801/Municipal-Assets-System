@@ -1,0 +1,6 @@
+@MunicipalAssetsSystem_HostAddress = http://localhost:5242
+
+GET {{MunicipalAssetsSystem_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
