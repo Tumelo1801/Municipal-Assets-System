@@ -1,6 +1,16 @@
+using Microsoft.EntityFrameworkCore;
+using MunicipalAssetsSystem.Data;
+
+
 var builder = WebApplication.CreateBuilder(args);
 
+// Add SQLite Database
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseSqlite("Data Source=municipal_assets.db"));
+
 // Add services to the container.
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
