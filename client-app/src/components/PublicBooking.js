@@ -34,8 +34,17 @@ function PublicBooking() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        // Format the booking data properly
+        const bookingData = {
+            ...booking,
+            bookingDate: new Date(booking.bookingDate).toISOString(),
+            startTime: booking.startTime + ":00", // Add seconds
+            endTime: booking.endTime + ":00"       // Add seconds
+        };
+
         try {
-            await axios.post(`${API_BASE}/bookings`, booking);
+            await axios.post(`${API_BASE}/bookings`, bookingData);
             alert('Booking request submitted successfully! We will contact you soon.');
             setBooking({
                 facilityId: 0,
@@ -51,6 +60,7 @@ function PublicBooking() {
             setSelectedFacility('');
         } catch (error) {
             console.error('Error submitting booking:', error);
+            console.error('Error details:', error.response?.data);
             alert('Error submitting booking request. Please try again.');
         }
     };
