@@ -13,6 +13,7 @@ namespace MunicipalAssetsSystem.Data
         public DbSet<Facility> Facilities { get; set; }
         public DbSet<Booking> Bookings { get; set; }
         public DbSet<Inspection> Inspections { get; set; }
+        public DbSet<Admin> Admins { get; set; }  // Add this line
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

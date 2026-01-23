@@ -43,5 +43,6 @@ app.UseHttpsRedirection();
 app.MapFacilityEndpoints();
 app.MapBookingEndpoints();
 app.MapInspectionEndpoints();
+app.MapAuthEndpoints();
 
 app.Run();
