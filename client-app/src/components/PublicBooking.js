@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { FaMapMarkerAlt, FaUsers, FaBuilding, FaTree, FaLandmark } from 'react-icons/fa';
 
 const API_BASE = 'http://localhost:5242/api';
 
@@ -34,15 +35,14 @@ function PublicBooking() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-
-        // Format the booking data properly
+        
         const bookingData = {
             ...booking,
             bookingDate: new Date(booking.bookingDate).toISOString(),
-            startTime: booking.startTime + ":00", // Add seconds
-            endTime: booking.endTime + ":00"       // Add seconds
+            startTime: booking.startTime + ":00",
+            endTime: booking.endTime + ":00"
         };
-
+        
         try {
             await axios.post(`${API_BASE}/bookings`, bookingData);
             alert('Booking request submitted successfully! We will contact you soon.');
@@ -325,11 +325,11 @@ function PublicBooking() {
                         </div>
 
                         <div style={{ marginBottom: '20px' }}>
-                            <p style={{ margin: '8px 0' }}>
-                                <strong>?? Location:</strong> {selectedFacilityDetails.location}
+                            <p style={{ margin: '8px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <FaMapMarkerAlt /> <strong>Location:</strong> {selectedFacilityDetails.location}
                             </p>
-                            <p style={{ margin: '8px 0' }}>
-                                <strong>?? Capacity:</strong> {selectedFacilityDetails.capacity} people
+                            <p style={{ margin: '8px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <FaUsers /> <strong>Capacity:</strong> {selectedFacilityDetails.capacity} people
                             </p>
                         </div>
 
@@ -339,7 +339,7 @@ function PublicBooking() {
                         </div>
 
                         <div>
-                            <strong>? Amenities:</strong>
+                            <strong>Amenities:</strong>
                             <p style={{ color: '#555', lineHeight: '1.6' }}>{selectedFacilityDetails.amenities}</p>
                         </div>
                     </div>
@@ -372,8 +372,12 @@ function PublicBooking() {
                             >
                                 <h3 style={{ color: '#2c3e50', marginTop: 0 }}>{facility.name}</h3>
                                 <p style={{ color: '#7f8c8d', fontSize: '14px' }}>{facility.type}</p>
-                                <p style={{ color: '#555', fontSize: '14px' }}>?? {facility.location}</p>
-                                <p style={{ color: '#555', fontSize: '14px' }}>?? Capacity: {facility.capacity}</p>
+                                <p style={{ color: '#555', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                    <FaMapMarkerAlt /> {facility.location}
+                                </p>
+                                <p style={{ color: '#555', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                    <FaUsers /> Capacity: {facility.capacity}
+                                </p>
                             </div>
                         ))}
                     </div>

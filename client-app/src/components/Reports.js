@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import { FaMapMarkerAlt, FaUsers, FaBuilding, FaTree, FaLandmark } from 'react-icons/fa';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, PieChart, Pie, Cell, LineChart, Line, ResponsiveContainer } from 'recharts';
 
 const API_BASE = 'http://localhost:5242/api';
@@ -100,7 +101,7 @@ function Reports() {
       <p style={{ color: '#7f8c8d', marginBottom: '30px', fontSize: '16px' }}>
         Comprehensive overview of municipal assets and bookings
       </p>
-
+      
       {/* Summary Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px', marginBottom: '40px' }}>
         <div style={{

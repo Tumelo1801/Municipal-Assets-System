@@ -11,7 +11,7 @@ using MunicipalAssetsSystem.Data;
 namespace MunicipalAssetsSystem.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260122195800_AddAdminAuthentication")]
+    [Migration("20260128055131_AddAdminAuthentication")]
     partial class AddAdminAuthentication
     {
         /// <inheritdoc />
