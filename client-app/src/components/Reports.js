@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { FaMapMarkerAlt, FaUsers, FaBuilding, FaTree, FaLandmark } from 'react-icons/fa';
+import API_BASE from '../config';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, PieChart, Pie, Cell, LineChart, Line, ResponsiveContainer } from 'recharts';
 
-const API_BASE = 'http://localhost:5242/api';
 
 const COLORS = ['#3498db', '#27ae60', '#9b59b6', '#e74c3c', '#f39c12', '#1abc9c'];
 

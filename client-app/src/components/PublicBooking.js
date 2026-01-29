@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { FaMapMarkerAlt, FaUsers, FaBuilding, FaTree, FaLandmark } from 'react-icons/fa';
+import API_BASE from '../config';
 
-const API_BASE = 'http://localhost:5242/api';
 
 function PublicBooking() {
     const [facilities, setFacilities] = useState([]);
