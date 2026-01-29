@@ -203,7 +203,7 @@ This system provides:
 ### Development Tools
 
 - Visual Studio 2022 (Backend IDE)
-- Visual Studio Code (Frontend IDE alternative)
+- Visual Studio 2022 (Frontend IDE)
 - Git for version control
 - GitHub for repository hosting
 - npm for package management
