@@ -4,6 +4,10 @@ using MunicipalAssetsSystem.Endpoints;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Configure Kestrel to listen on the PORT environment variable (for Render)
+var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+
 // Add SQLite Database
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlite("Data Source=municipal_assets.db"));
@@ -14,10 +18,10 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowReactApp",
         policy =>
         {
-            policy.SetIsOriginAllowed(origin =>
-              new Uri(origin).Host == "localhost")
-            .AllowAnyHeader()
-            .AllowAnyMethod();
+            policy.SetIsOriginAllowed(origin => true) 
+                  .AllowAnyHeader()
+                  .AllowAnyMethod()
+                  .AllowCredentials();
         });
 });
 
