@@ -1,0 +1,28 @@
+services:
+  # Backend API Service
+  - type: web
+    name: municipal-assets-api
+    env: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ASPNETCORE_URLS
+        value: http://+:10000
+
+  # Frontend Static Site
+  - type: web
+    name: municipal-assets-frontend
+    env: static
+    buildCommand: cd client-app && npm install && REACT_APP_API_URL=$REACT_APP_API_URL npm run build
+    staticPublishPath: ./client-app/build
+    plan: free
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: REACT_APP_API_URL
+        sync: false
