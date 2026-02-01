@@ -4,7 +4,6 @@ services:
     name: municipal-assets-api
     env: docker
     dockerfilePath: ./Dockerfile
-    plan: free
     healthCheckPath: /
     envVars:
       - key: ASPNETCORE_ENVIRONMENT
@@ -18,7 +17,6 @@ services:
     env: static
     buildCommand: cd client-app && npm install && REACT_APP_API_URL=$REACT_APP_API_URL npm run build
     staticPublishPath: ./client-app/build
-    plan: free
     routes:
       - type: rewrite
         source: /*
@@ -26,3 +24,5 @@ services:
     envVars:
       - key: REACT_APP_API_URL
         sync: false
+
+
