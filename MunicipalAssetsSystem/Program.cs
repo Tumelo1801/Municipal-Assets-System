@@ -4,8 +4,8 @@ using MunicipalAssetsSystem.Endpoints;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Configure Kestrel to listen on the PORT environment variable (for Render)
-var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+var port = Environment.GetEnvironmentVariable("PORT") ??
+           (builder.Environment.IsDevelopment() ? "5242" : "10000");
 builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 
 // Add SQLite Database
@@ -31,6 +31,9 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
+
+app.UseCors("AllowAll");
+
 // Configure the HTTP request pipeline
 if (app.Environment.IsDevelopment())
 {
@@ -48,5 +51,6 @@ app.MapFacilityEndpoints();
 app.MapBookingEndpoints();
 app.MapInspectionEndpoints();
 app.MapAuthEndpoints();
+
 
 app.Run();
