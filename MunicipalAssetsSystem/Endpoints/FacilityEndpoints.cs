@@ -10,6 +10,9 @@ namespace MunicipalAssetsSystem.Endpoints
         {
             var group = app.MapGroup("/api/facilities").WithTags("Facilities");
 
+            var adminGroup = group.MapGroup("")
+                .RequireAuthorization();
+
             // GET: Get all facilities
             group.MapGet("/", async (ApplicationDbContext db) =>
             {
@@ -21,10 +24,10 @@ namespace MunicipalAssetsSystem.Endpoints
             {
                 var facility = await db.Facilities.FindAsync(id);
                 return facility is not null ? Results.Ok(facility) : Results.NotFound();
-            });
+            }); 
 
             // POST: Create new facility
-            group.MapPost("/", async (Facility facility, ApplicationDbContext db) =>
+            adminGroup.MapPost("/", async (Facility facility, ApplicationDbContext db) =>
             {
                 db.Facilities.Add(facility);
                 await db.SaveChangesAsync();
@@ -32,7 +35,7 @@ namespace MunicipalAssetsSystem.Endpoints
             });
 
             // PUT: Update facility
-            group.MapPut("/{id}", async (int id, Facility updatedFacility, ApplicationDbContext db) =>
+            adminGroup.MapPut("/{id}", async (int id, Facility updatedFacility, ApplicationDbContext db) =>
             {
                 var facility = await db.Facilities.FindAsync(id);
                 if (facility is null) return Results.NotFound();
@@ -50,7 +53,7 @@ namespace MunicipalAssetsSystem.Endpoints
             });
 
             // DELETE: Delete facility
-            group.MapDelete("/{id}", async (int id, ApplicationDbContext db) =>
+            adminGroup.MapDelete("/{id}", async (int id, ApplicationDbContext db) =>
             {
                 var facility = await db.Facilities.FindAsync(id);
                 if (facility is null) return Results.NotFound();

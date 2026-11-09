@@ -9,7 +9,10 @@ namespace MunicipalAssetsSystem.Endpoints
     {
         public static void MapInspectionEndpoints(this WebApplication app)
         {
-            var group = app.MapGroup("/api/inspections").WithTags("Inspections");
+
+            var group = app.MapGroup("/api/inspections")
+                .WithTags("Inspections")
+                .RequireAuthorization();
 
             // GET: Get all inspections
             group.MapGet("/", async (ApplicationDbContext db) =>

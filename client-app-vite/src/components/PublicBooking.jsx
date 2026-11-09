@@ -1,389 +1,519 @@
-import React, { useState, useEffect } from 'react';
-import { FaMapMarkerAlt, FaUsers, FaBuilding, FaTree, FaLandmark } from 'react-icons/fa';
-import api from '../services/api';
 
+import React, { useEffect, useState } from 'react';
+import {
+  FaMapMarkerAlt,
+  FaUsers,
+  FaBuilding,
+  FaTree,
+  FaLandmark,
+  FaCalendarAlt,
+  FaClock,
+  FaCheckCircle,
+  FaArrowRight,
+  FaInfoCircle
+} from 'react-icons/fa';
+
+import api from '../services/api';
+import './PublicBooking.css';
+
+const initialBooking = {
+  facilityId: 0,
+  requesterName: '',
+  requesterEmail: '',
+  requesterPhone: '',
+  bookingDate: '',
+  startTime: '',
+  endTime: '',
+  purpose: '',
+  expectedAttendees: ''
+};
+
+const getFacilityIcon = (type) => {
+  switch (type?.toLowerCase()) {
+    case 'park':
+      return FaTree;
+    case 'building':
+      return FaBuilding;
+    default:
+      return FaLandmark;
+  }
+};
 
 function PublicBooking() {
-    const [facilities, setFacilities] = useState([]);
-    const [selectedFacility, setSelectedFacility] = useState('');
-    const [booking, setBooking] = useState({
-        facilityId: 0,
-        requesterName: '',
-        requesterEmail: '',
-        requesterPhone: '',
-        bookingDate: '',
-        startTime: '',
-        endTime: '',
-        purpose: '',
-        expectedAttendees: 0
-    });
+  const [facilities, setFacilities] = useState([]);
+  const [selectedFacility, setSelectedFacility] = useState('');
+  const [booking, setBooking] = useState(initialBooking);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
-    useEffect(() => {
-        fetchFacilities();
-    }, []);
+  useEffect(() => {
+    fetchFacilities();
+  }, []);
 
-    const fetchFacilities = async () => {
-        try {
-            const response = await api.get('/facilities');
-            const available = response.data.filter(f => f.status === 'Available');
-            setFacilities(available);
-        } catch (error) {
-            console.error('Error fetching facilities:', error);
-        }
-    };
+  const fetchFacilities = async () => {
+    try {
+      setLoading(true);
+      setError('');
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
+      const response = await api.get('/facilities');
+      const available = response.data.filter(
+        facility => facility.status === 'Available'
+      );
 
-        const bookingData = {
-            ...booking,
-            bookingDate: new Date(booking.bookingDate).toISOString(),
-            startTime: booking.startTime + ":00",
-            endTime: booking.endTime + ":00"
-        };
+      setFacilities(available);
+    } catch (err) {
+      console.error('Error fetching facilities:', err);
+      setError('We could not load the facilities. Please refresh the page and try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-        try {
-            await api.post('/bookings', bookingData);
-            alert('Booking request submitted successfully! We will contact you soon.');
-            setBooking({
-                facilityId: 0,
-                requesterName: '',
-                requesterEmail: '',
-                requesterPhone: '',
-                bookingDate: '',
-                startTime: '',
-                endTime: '',
-                purpose: '',
-                expectedAttendees: 0
-            });
-            setSelectedFacility('');
-        } catch (error) {
-            console.error('Error submitting booking:', error);
-            console.error('Error details:', error.response?.data);
-            alert('Error submitting booking request. Please try again.');
-        }
-    };
+  const updateBooking = (field, value) => {
+    setBooking(previous => ({
+      ...previous,
+      [field]: value
+    }));
+  };
 
-    const handleFacilityChange = (e) => {
-        const facilityId = parseInt(e.target.value);
-        setSelectedFacility(facilityId);
-        setBooking({ ...booking, facilityId });
-    };
+  const handleFacilityChange = (facilityId) => {
+    const id = Number(facilityId);
 
-    const selectedFacilityDetails = facilities.find(f => f.id === selectedFacility);
+    setSelectedFacility(facilityId);
+    setBooking(previous => ({
+      ...previous,
+      facilityId: id
+    }));
 
-    return (
-        <div style={{ fontFamily: 'Arial, sans-serif', maxWidth: '900px', margin: '0 auto', padding: '20px' }}>
-            <h1 style={{ color: '#2c3e50', marginBottom: '10px' }}>Book a Municipal Facility</h1>
-            <p style={{ color: '#7f8c8d', marginBottom: '30px' }}>
-                Browse available facilities and submit a booking request. Our team will review and get back to you shortly.
-            </p>
+    setSuccess('');
+    setError('');
+  };
 
-            <div style={{ display: 'grid', gridTemplateColumns: selectedFacility ? '1fr 1fr' : '1fr', gap: '30px' }}>
-                {/* Booking Form */}
-                <div style={{ backgroundColor: 'white', padding: '30px', borderRadius: '8px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
-                    <h2 style={{ marginTop: 0, color: '#2c3e50' }}>Request a Booking</h2>
+  const selectedFacilityDetails = facilities.find(
+    facility => Number(facility.id) === Number(selectedFacility)
+  );
 
-                    <div style={{ marginBottom: '20px' }}>
-                        <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold', color: '#2c3e50' }}>
-                            Select Facility *
-                        </label>
-                        <select
-                            value={selectedFacility}
-                            onChange={handleFacilityChange}
-                            required
-                            style={{
-                                width: '100%',
-                                padding: '12px',
-                                borderRadius: '5px',
-                                border: '1px solid #bdc3c7',
-                                fontSize: '16px'
-                            }}
-                        >
-                            <option value="">-- Choose a facility --</option>
-                            {facilities.map(facility => (
-                                <option key={facility.id} value={facility.id}>
-                                    {facility.name} ({facility.type})
-                                </option>
-                            ))}
-                        </select>
-                    </div>
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    setError('');
+    setSuccess('');
 
-                    {selectedFacility && (
-                        <>
-                            <div style={{ marginBottom: '20px' }}>
-                                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold', color: '#2c3e50' }}>
-                                    Your Name *
-                                </label>
-                                <input
-                                    type="text"
-                                    value={booking.requesterName}
-                                    onChange={(e) => setBooking({ ...booking, requesterName: e.target.value })}
-                                    required
-                                    placeholder="Full name"
-                                    style={{
-                                        width: '100%',
-                                        padding: '12px',
-                                        borderRadius: '5px',
-                                        border: '1px solid #bdc3c7',
-                                        fontSize: '16px'
-                                    }}
-                                />
-                            </div>
+    if (!selectedFacilityDetails) {
+      setError('Please select a facility before submitting your request.');
+      return;
+    }
 
-                            <div style={{ marginBottom: '20px' }}>
-                                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold', color: '#2c3e50' }}>
-                                    Email Address *
-                                </label>
-                                <input
-                                    type="email"
-                                    value={booking.requesterEmail}
-                                    onChange={(e) => setBooking({ ...booking, requesterEmail: e.target.value })}
-                                    required
-                                    placeholder="email@example.com"
-                                    style={{
-                                        width: '100%',
-                                        padding: '12px',
-                                        borderRadius: '5px',
-                                        border: '1px solid #bdc3c7',
-                                        fontSize: '16px'
-                                    }}
-                                />
-                            </div>
+    if (booking.endTime <= booking.startTime) {
+      setError('The end time must be later than the start time.');
+      return;
+    }
 
-                            <div style={{ marginBottom: '20px' }}>
-                                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold', color: '#2c3e50' }}>
-                                    Phone Number *
-                                </label>
-                                <input
-                                    type="tel"
-                                    value={booking.requesterPhone}
-                                    onChange={(e) => setBooking({ ...booking, requesterPhone: e.target.value })}
-                                    required
-                                    placeholder="(555) 123-4567"
-                                    style={{
-                                        width: '100%',
-                                        padding: '12px',
-                                        borderRadius: '5px',
-                                        border: '1px solid #bdc3c7',
-                                        fontSize: '16px'
-                                    }}
-                                />
-                            </div>
+    try {
+      setSubmitting(true);
 
-                            <div style={{ marginBottom: '20px' }}>
-                                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold', color: '#2c3e50' }}>
-                                    Booking Date *
-                                </label>
-                                <input
-                                    type="date"
-                                    value={booking.bookingDate}
-                                    onChange={(e) => setBooking({ ...booking, bookingDate: e.target.value })}
-                                    required
-                                    min={new Date().toISOString().split('T')[0]}
-                                    style={{
-                                        width: '100%',
-                                        padding: '12px',
-                                        borderRadius: '5px',
-                                        border: '1px solid #bdc3c7',
-                                        fontSize: '16px'
-                                    }}
-                                />
-                            </div>
+      const bookingData = {
+        ...booking,
+        facilityId: Number(booking.facilityId),
+        expectedAttendees: Number(booking.expectedAttendees),
+        bookingDate: new Date(
+          `${booking.bookingDate}T00:00:00`
+        ).toISOString(),
+        startTime: `${booking.startTime}:00`,
+        endTime: `${booking.endTime}:00`
+      };
 
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '20px' }}>
-                                <div>
-                                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold', color: '#2c3e50' }}>
-                                        Start Time *
-                                    </label>
-                                    <input
-                                        type="time"
-                                        value={booking.startTime}
-                                        onChange={(e) => setBooking({ ...booking, startTime: e.target.value })}
-                                        required
-                                        style={{
-                                            width: '100%',
-                                            padding: '12px',
-                                            borderRadius: '5px',
-                                            border: '1px solid #bdc3c7',
-                                            fontSize: '16px'
-                                        }}
-                                    />
-                                </div>
-                                <div>
-                                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold', color: '#2c3e50' }}>
-                                        End Time *
-                                    </label>
-                                    <input
-                                        type="time"
-                                        value={booking.endTime}
-                                        onChange={(e) => setBooking({ ...booking, endTime: e.target.value })}
-                                        required
-                                        style={{
-                                            width: '100%',
-                                            padding: '12px',
-                                            borderRadius: '5px',
-                                            border: '1px solid #bdc3c7',
-                                            fontSize: '16px'
-                                        }}
-                                    />
-                                </div>
-                            </div>
+      await api.post('/bookings', bookingData);
 
-                            <div style={{ marginBottom: '20px' }}>
-                                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold', color: '#2c3e50' }}>
-                                    Expected Attendees *
-                                </label>
-                                <input
-                                    type="number"
-                                    value={booking.expectedAttendees}
-                                    onChange={(e) => setBooking({ ...booking, expectedAttendees: parseInt(e.target.value) })}
-                                    required
-                                    min="1"
-                                    placeholder="Number of people"
-                                    style={{
-                                        width: '100%',
-                                        padding: '12px',
-                                        borderRadius: '5px',
-                                        border: '1px solid #bdc3c7',
-                                        fontSize: '16px'
-                                    }}
-                                />
-                            </div>
+      setSuccess(
+        'Your booking request has been submitted successfully. Our team will contact you shortly.'
+      );
 
-                            <div style={{ marginBottom: '20px' }}>
-                                <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold', color: '#2c3e50' }}>
-                                    Purpose of Booking *
-                                </label>
-                                <textarea
-                                    value={booking.purpose}
-                                    onChange={(e) => setBooking({ ...booking, purpose: e.target.value })}
-                                    required
-                                    placeholder="Please describe the purpose of your booking..."
-                                    style={{
-                                        width: '100%',
-                                        padding: '12px',
-                                        borderRadius: '5px',
-                                        border: '1px solid #bdc3c7',
-                                        fontSize: '16px',
-                                        minHeight: '100px',
-                                        resize: 'vertical'
-                                    }}
-                                />
-                            </div>
+      setBooking(initialBooking);
+      setSelectedFacility('');
+    } catch (err) {
+      console.error('Error submitting booking:', err);
+      console.error('Error details:', err.response?.data);
 
-                            <button
-                                onClick={handleSubmit}
-                                style={{
-                                    width: '100%',
-                                    padding: '15px',
-                                    backgroundColor: '#3498db',
-                                    color: 'white',
-                                    border: 'none',
-                                    borderRadius: '5px',
-                                    cursor: 'pointer',
-                                    fontSize: '18px',
-                                    fontWeight: 'bold'
-                                }}
-                            >
-                                Submit Booking Request
-                            </button>
-                        </>
-                    )}
-                </div>
+      setError(
+        err.response?.data?.message ||
+        'We could not submit your booking request. Please check your details and try again.'
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
-                {/* Facility Details */}
-                {selectedFacilityDetails && (
-                    <div style={{ backgroundColor: '#ecf0f1', padding: '30px', borderRadius: '8px' }}>
-                        <h2 style={{ marginTop: 0, color: '#2c3e50' }}>Facility Details</h2>
-                        <h3 style={{ color: '#3498db' }}>{selectedFacilityDetails.name}</h3>
+  const today = new Date().toLocaleDateString('en-CA');
 
-                        <div style={{ marginBottom: '15px' }}>
-                            <span style={{
-                                display: 'inline-block',
-                                padding: '5px 12px',
-                                backgroundColor: selectedFacilityDetails.type === 'Building' ? '#3498db' :
-                                    selectedFacilityDetails.type === 'Park' ? '#27ae60' : '#9b59b6',
-                                color: 'white',
-                                borderRadius: '15px',
-                                fontSize: '14px',
-                                marginRight: '8px'
-                            }}>
-                                {selectedFacilityDetails.type}
-                            </span>
-                            <span style={{
-                                display: 'inline-block',
-                                padding: '5px 12px',
-                                backgroundColor: '#27ae60',
-                                color: 'white',
-                                borderRadius: '15px',
-                                fontSize: '14px'
-                            }}>
-                                {selectedFacilityDetails.status}
-                            </span>
-                        </div>
+  return (
+    <div className="booking-page">
+      <section className="booking-hero">
+        <div className="booking-hero-content">
+          <span className="section-eyebrow">MUNICIPAL SERVICES</span>
+          <h1>Find and Book a Municipal Facility</h1>
+          <p>
+            Discover community spaces, explore available facilities and
+            submit your booking request online.
+          </p>
 
-                        <div style={{ marginBottom: '20px' }}>
-                            <p style={{ margin: '8px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <FaMapMarkerAlt /> <strong>Location:</strong> {selectedFacilityDetails.location}
-                            </p>
-                            <p style={{ margin: '8px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <FaUsers /> <strong>Capacity:</strong> {selectedFacilityDetails.capacity} people
-                            </p>
-                        </div>
+          <div className="hero-highlights">
+            <span><FaCheckCircle /> Browse available facilities</span>
+            <span><FaCheckCircle /> Simple booking requests</span>
+            <span><FaCheckCircle /> Review by municipal staff</span>
+          </div>
+        </div>
+      </section>
 
-                        <div style={{ marginBottom: '20px' }}>
-                            <strong>Description:</strong>
-                            <p style={{ color: '#555', lineHeight: '1.6' }}>{selectedFacilityDetails.description}</p>
-                        </div>
+      <div className="booking-container">
+        {success && (
+          <div className="booking-alert success-alert" role="status">
+            <FaCheckCircle />
+            <span>{success}</span>
+          </div>
+        )}
 
-                        <div>
-                            <strong>Amenities:</strong>
-                            <p style={{ color: '#555', lineHeight: '1.6' }}>{selectedFacilityDetails.amenities}</p>
-                        </div>
-                    </div>
-                )}
+        {error && (
+          <div className="booking-alert error-alert" role="alert">
+            <FaInfoCircle />
+            <span>{error}</span>
+          </div>
+        )}
+
+        <section className="facility-section">
+          <div className="section-heading">
+            <div>
+              <span className="section-eyebrow">EXPLORE OUR SPACES</span>
+              <h2>Available Facilities</h2>
+              <p>Choose a facility that suits your needs.</p>
             </div>
 
-            {/* Available Facilities Preview */}
-            {!selectedFacility && facilities.length > 0 && (
-                <div style={{ marginTop: '40px' }}>
-                    <h2 style={{ color: '#2c3e50' }}>Available Facilities</h2>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px' }}>
-                        {facilities.map(facility => (
-                            <div
-                                key={facility.id}
-                                style={{
-                                    backgroundColor: 'white',
-                                    padding: '20px',
-                                    borderRadius: '8px',
-                                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-                                    cursor: 'pointer',
-                                    border: '2px solid transparent',
-                                    transition: 'border-color 0.3s'
-                                }}
-                                onClick={() => {
-                                    setSelectedFacility(facility.id);
-                                    setBooking({ ...booking, facilityId: facility.id });
-                                }}
-                                onMouseEnter={(e) => e.currentTarget.style.borderColor = '#3498db'}
-                                onMouseLeave={(e) => e.currentTarget.style.borderColor = 'transparent'}
-                            >
-                                <h3 style={{ color: '#2c3e50', marginTop: 0 }}>{facility.name}</h3>
-                                <p style={{ color: '#7f8c8d', fontSize: '14px' }}>{facility.type}</p>
-                                <p style={{ color: '#555', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                                    <FaMapMarkerAlt /> {facility.location}
-                                </p>
-                                <p style={{ color: '#555', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                                    <FaUsers /> Capacity: {facility.capacity}
-                                </p>
-                            </div>
-                        ))}
+            <span className="facility-count">
+              {facilities.length} {facilities.length === 1 ? 'facility' : 'facilities'}
+            </span>
+          </div>
+
+          {loading ? (
+            <div className="booking-state">
+              <div className="loading-spinner" />
+              <p>Loading available facilities...</p>
+            </div>
+          ) : facilities.length === 0 ? (
+            <div className="booking-state">
+              <FaBuilding className="empty-icon" />
+              <h3>No facilities currently available</h3>
+              <p>Please check again later.</p>
+            </div>
+          ) : (
+            <div className="facility-grid">
+              {facilities.map(facility => {
+                const FacilityIcon = getFacilityIcon(facility.type);
+                const isSelected =
+                  Number(selectedFacility) === Number(facility.id);
+
+                return (
+                  <button
+                    type="button"
+                    className={`facility-card ${isSelected ? 'selected' : ''}`}
+                    key={facility.id}
+                    onClick={() => handleFacilityChange(facility.id)}
+                  >
+                    <div className="facility-card-top">
+                      <span className="facility-icon">
+                        <FacilityIcon />
+                      </span>
+                      <span className="availability-badge">
+                        <span />
+                        Available
+                      </span>
                     </div>
+
+                    <div className="facility-card-content">
+                      <span className="facility-type">{facility.type}</span>
+                      <h3>{facility.name}</h3>
+
+                      <p className="facility-location">
+                        <FaMapMarkerAlt />
+                        {facility.location || 'Location not specified'}
+                      </p>
+
+                      <p className="facility-capacity">
+                        <FaUsers />
+                        Capacity: {facility.capacity} people
+                      </p>
+                    </div>
+
+                    <span className="facility-card-action">
+                      {isSelected ? 'Selected' : 'View facility'}
+                      <FaArrowRight />
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
+        <section className="booking-section" id="booking-form">
+          <div className="section-heading">
+            <div>
+              <span className="section-eyebrow">MAKE A REQUEST</span>
+              <h2>Request a Booking</h2>
+              <p>Complete the details below to submit your request.</p>
+            </div>
+          </div>
+
+          <div className="booking-layout">
+            <form className="booking-form" onSubmit={handleSubmit}>
+              <div className="form-section-title">
+                <span className="form-step">01</span>
+                <div>
+                  <h3>Facility selection</h3>
+                  <p>Which municipal facility would you like to book?</p>
                 </div>
-            )}
-        </div>
-    );
+              </div>
+
+              <div className="form-field">
+                <label htmlFor="facilityId">Select Facility <span>*</span></label>
+                <select
+                  id="facilityId"
+                  value={selectedFacility}
+                  onChange={(e) => handleFacilityChange(e.target.value)}
+                  required
+                  disabled={loading || facilities.length === 0}
+                >
+                  <option value="">Choose a facility</option>
+                  {facilities.map(facility => (
+                    <option key={facility.id} value={facility.id}>
+                      {facility.name} ({facility.type})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <fieldset className="form-fieldset" disabled={!selectedFacilityDetails}>
+                <div className="form-section-title">
+                  <span className="form-step">02</span>
+                  <div>
+                    <h3>Your details</h3>
+                    <p>Provide the contact information for this request.</p>
+                  </div>
+                </div>
+
+                <div className="form-grid">
+                  <div className="form-field">
+                    <label htmlFor="requesterName">Full Name <span>*</span></label>
+                    <input
+                      id="requesterName"
+                      type="text"
+                      value={booking.requesterName}
+                      onChange={e => updateBooking('requesterName', e.target.value)}
+                      placeholder="Enter your full name"
+                      autoComplete="name"
+                      required
+                    />
+                  </div>
+
+                  <div className="form-field">
+                    <label htmlFor="requesterEmail">Email Address <span>*</span></label>
+                    <input
+                      id="requesterEmail"
+                      type="email"
+                      value={booking.requesterEmail}
+                      onChange={e => updateBooking('requesterEmail', e.target.value)}
+                      placeholder="name@example.com"
+                      autoComplete="email"
+                      required
+                    />
+                  </div>
+
+                  <div className="form-field">
+                    <label htmlFor="requesterPhone">Phone Number <span>*</span></label>
+                    <input
+                      id="requesterPhone"
+                      type="tel"
+                      value={booking.requesterPhone}
+                      onChange={e => updateBooking('requesterPhone', e.target.value)}
+                      placeholder="Enter your phone number"
+                      autoComplete="tel"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="form-section-title">
+                  <span className="form-step">03</span>
+                  <div>
+                    <h3>Booking information</h3>
+                    <p>Tell us when and why you need the facility.</p>
+                  </div>
+                </div>
+
+                <div className="form-grid">
+                  <div className="form-field">
+                    <label htmlFor="bookingDate">
+                      Booking Date <span>*</span>
+                    </label>
+                    <div className="input-with-icon">
+                      <FaCalendarAlt />
+                      <input
+                        id="bookingDate"
+                        type="date"
+                        value={booking.bookingDate}
+                        min={today}
+                        onChange={e => updateBooking('bookingDate', e.target.value)}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-field">
+                    <label htmlFor="expectedAttendees">
+                      Expected Attendees <span>*</span>
+                    </label>
+                    <div className="input-with-icon">
+                      <FaUsers />
+                      <input
+                        id="expectedAttendees"
+                        type="number"
+                        value={booking.expectedAttendees}
+                        onChange={e => updateBooking('expectedAttendees', e.target.value)}
+                        min="1"
+                        max={selectedFacilityDetails?.capacity || undefined}
+                        placeholder="Number of people"
+                        required
+                      />
+                    </div>
+                    {selectedFacilityDetails?.capacity && (
+                      <small>
+                        Maximum capacity: {selectedFacilityDetails.capacity} people
+                      </small>
+                    )}
+                  </div>
+
+                  <div className="form-field">
+                    <label htmlFor="startTime">Start Time <span>*</span></label>
+                    <div className="input-with-icon">
+                      <FaClock />
+                      <input
+                        id="startTime"
+                        type="time"
+                        value={booking.startTime}
+                        onChange={e => updateBooking('startTime', e.target.value)}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-field">
+                    <label htmlFor="endTime">End Time <span>*</span></label>
+                    <div className="input-with-icon">
+                      <FaClock />
+                      <input
+                        id="endTime"
+                        type="time"
+                        value={booking.endTime}
+                        min={booking.startTime || undefined}
+                        onChange={e => updateBooking('endTime', e.target.value)}
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-field full-width">
+                    <label htmlFor="purpose">Purpose of Booking <span>*</span></label>
+                    <textarea
+                      id="purpose"
+                      value={booking.purpose}
+                      onChange={e => updateBooking('purpose', e.target.value)}
+                      placeholder="Describe the purpose of your booking..."
+                      rows="4"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  className="submit-booking-button"
+                  disabled={!selectedFacilityDetails || submitting}
+                >
+                  {submitting ? 'Submitting request...' : 'Submit Booking Request'}
+                  {!submitting && <FaArrowRight />}
+                </button>
+
+                <p className="form-disclaimer">
+                  Submitting a request does not guarantee a booking.
+                  Municipal staff will review your request.
+                </p>
+              </fieldset>
+            </form>
+
+            <aside className="facility-details-panel">
+              {selectedFacilityDetails ? (
+                <>
+                  <div className="details-panel-heading">
+                    <span className="details-icon">
+                      <FaBuilding />
+                    </span>
+                    <span className="details-status">Available</span>
+                  </div>
+
+                  <span className="section-eyebrow">SELECTED FACILITY</span>
+                  <h3>{selectedFacilityDetails.name}</h3>
+                  <p className="details-type">{selectedFacilityDetails.type}</p>
+
+                  <div className="details-information">
+                    <div>
+                      <FaMapMarkerAlt />
+                      <span>{selectedFacilityDetails.location || 'Location not specified'}</span>
+                    </div>
+                    <div>
+                      <FaUsers />
+                      <span>Capacity: {selectedFacilityDetails.capacity} people</span>
+                    </div>
+                  </div>
+
+                  <div className="details-description">
+                    <h4>About this facility</h4>
+                    <p>
+                      {selectedFacilityDetails.description ||
+                        'No description is currently available.'}
+                    </p>
+                  </div>
+
+                  <div className="details-description">
+                    <h4>Amenities</h4>
+                    <p>
+                      {selectedFacilityDetails.amenities ||
+                        'No amenities information is currently available.'}
+                    </p>
+                  </div>
+
+                  <div className="details-note">
+                    <FaInfoCircle />
+                    <p>Complete the booking form to request this facility.</p>
+                  </div>
+                </>
+              ) : (
+                <div className="details-empty">
+                  <span className="details-icon">
+                    <FaBuilding />
+                  </span>
+                  <h3>Choose a facility</h3>
+                  <p>
+                    Select a facility from the catalogue to view its details
+                    and complete your booking request.
+                  </p>
+                </div>
+              )}
+            </aside>
+          </div>
+        </section>
+      </div>
+    </div>
+  );
 }
 
 export default PublicBooking;

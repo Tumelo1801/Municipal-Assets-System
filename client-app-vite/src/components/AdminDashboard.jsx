@@ -1,5 +1,42 @@
 import React, { useState, useEffect } from 'react';
+
+import {
+  FaBuilding,
+  FaCalendarCheck,
+  FaClock,
+  FaClipboardList,
+  FaPlus,
+  FaSearch,
+  FaEdit,
+  FaTrash,
+  FaCheck,
+  FaTimes,
+  FaMapMarkerAlt,
+  FaUsers,
+  FaCalendarAlt,
+  FaUserShield,
+  FaKey
+} from 'react-icons/fa';
+
 import api from '../services/api';
+import './AdminDashboard.css';
+
+const emptyFacility = {
+  name: '',
+  type: 'Building',
+  location: '',
+  description: '',
+  capacity: 0,
+  amenities: '',
+  status: 'Available'
+};
+
+const emptyAdmin = {
+  fullName: '',
+  username: '',
+  email: '',
+  password: ''
+};
 
 function AdminDashboard() {
   const [facilities, setFacilities] = useState([]);
@@ -8,28 +45,54 @@ function AdminDashboard() {
   const [showAddFacility, setShowAddFacility] = useState(false);
   const [editingFacility, setEditingFacility] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
-
-  const [newFacility, setNewFacility] = useState({
-    name: '',
-    type: 'Building',
-    location: '',
-    description: '',
-    capacity: 0,
-    amenities: '',
-    status: 'Available'
-  });
+  const [newFacility, setNewFacility] = useState(emptyFacility);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [admins, setAdmins] = useState([]);
+  const [showAddAdmin, setShowAddAdmin] = useState(false);
+  const [newAdmin, setNewAdmin] = useState(emptyAdmin);
+  const [adminSearchTerm, setAdminSearchTerm] = useState('');
+  const [resetAdminId, setResetAdminId] = useState(null);
+  const [resetPassword, setResetPassword] = useState('');
 
   useEffect(() => {
-    fetchFacilities();
-    fetchBookings();
+    loadDashboard();
   }, []);
+
+  useEffect(() => {
+    if (activeTab === 'administrators') {
+      fetchAdmins();
+    }
+  }, [activeTab]);
+
+  const loadDashboard = async () => {
+    try {
+      setLoading(true);
+      setError('');
+
+      const [facilityResponse, bookingResponse] = await Promise.all([
+        api.get('/facilities'),
+        api.get('/bookings')
+      ]);
+
+      setFacilities(facilityResponse.data);
+      setBookings(bookingResponse.data);
+    } catch (err) {
+      console.error('Error loading dashboard:', err);
+      setError('Unable to load dashboard information. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchFacilities = async () => {
     try {
       const response = await api.get('/facilities');
       setFacilities(response.data);
-    } catch (error) {
-      console.error('Error fetching facilities:', error);
+    } catch (err) {
+      console.error('Error fetching facilities:', err);
+      setError('Unable to refresh facilities.');
     }
   };
 
@@ -37,242 +100,880 @@ function AdminDashboard() {
     try {
       const response = await api.get('/bookings');
       setBookings(response.data);
-    } catch (error) {
-      console.error('Error fetching bookings:', error);
+    } catch (err) {
+      console.error('Error fetching bookings:', err);
+      setError('Unable to refresh bookings.');
+    }
+  };
+
+  const fetchAdmins = async () => {
+    try {
+      setError('');
+      const response = await api.get('/auth/admins');
+      setAdmins(Array.isArray(response.data) ? response.data : []);
+    } catch (err) {
+      console.error('Error fetching administrators:', err);
+      setError(
+        err.response?.data?.message ||
+        'Unable to load administrator accounts. Please check that you are signed in as an administrator.'
+      );
+    }
+  };
+
+  const handleAddAdmin = async (e) => {
+    e.preventDefault();
+
+    try {
+      setSaving(true);
+      setError('');
+
+      await api.post('/auth/admins', newAdmin);
+
+      setNewAdmin(emptyAdmin);
+      setShowAddAdmin(false);
+      await fetchAdmins();
+    } catch (err) {
+      console.error('Error adding administrator:', err);
+      setError(
+        err.response?.data?.message ||
+        'Unable to create administrator account. Check the details and try again.'
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleResetAdminPassword = async (e, admin) => {
+    e.preventDefault();
+
+    if (!resetPassword) {
+      setError('Please enter a new password.');
+      return;
+    }
+
+    if (!window.confirm(`Reset the password for ${admin.fullName}?`)) {
+      return;
+    }
+
+    try {
+      setSaving(true);
+      setError('');
+
+      const response = await api.post(
+        `/auth/admins/${admin.id}/reset-password`,
+        { newPassword: resetPassword }
+      );
+
+      window.alert(response.data?.message || 'Administrator password reset successfully.');
+      setResetAdminId(null);
+      setResetPassword('');
+    } catch (err) {
+      console.error('Error resetting administrator password:', err);
+      setError(
+        err.response?.data?.message ||
+        'Unable to reset this administrator password. Please try again.'
+      );
+    } finally {
+      setSaving(false);
     }
   };
 
   const handleAddFacility = async (e) => {
     e.preventDefault();
+
     try {
-      await api.post('/facilities', newFacility);
-      setNewFacility({
-        name: '',
-        type: 'Building',
-        location: '',
-        description: '',
-        capacity: 0,
-        amenities: '',
-        status: 'Available'
+      setSaving(true);
+      setError('');
+
+      await api.post('/facilities', {
+        ...newFacility,
+        capacity: Number(newFacility.capacity)
       });
+
+      setNewFacility(emptyFacility);
       setShowAddFacility(false);
-      fetchFacilities();
-      alert('Facility added successfully!');
-    } catch (error) {
-      console.error('Error adding facility:', error);
-      alert('Error adding facility');
+      await fetchFacilities();
+    } catch (err) {
+      console.error('Error adding facility:', err);
+      setError(err.response?.data?.message || 'Unable to add facility.');
+    } finally {
+      setSaving(false);
     }
   };
 
   const handleUpdateFacility = async (e) => {
     e.preventDefault();
+
     try {
-      await api.put(`/facilities/${editingFacility.id}`, editingFacility);
+      setSaving(true);
+      setError('');
+
+      await api.put(`/facilities/${editingFacility.id}`, {
+        ...editingFacility,
+        capacity: Number(editingFacility.capacity)
+      });
+
       setEditingFacility(null);
-      fetchFacilities();
-      alert('Facility updated successfully!');
-    } catch (error) {
-      console.error('Error updating facility:', error);
-      alert('Error updating facility');
+      await fetchFacilities();
+    } catch (err) {
+      console.error('Error updating facility:', err);
+      setError(err.response?.data?.message || 'Unable to update facility.');
+    } finally {
+      setSaving(false);
     }
+  };
+
+  const handleEditFacility = (facility) => {
+    setShowAddFacility(false);
+
+    setEditingFacility({
+      ...emptyFacility,
+      ...facility
+    });
+
+    setError('');
   };
 
   const handleDeleteFacility = async (id) => {
-    if (window.confirm('Are you sure you want to delete this facility?')) {
-      try {
-        await api.delete(`/facilities/${id}`);
-        fetchFacilities();
-        alert('Facility deleted successfully!');
-      } catch (error) {
-        console.error('Error deleting facility:', error);
-        alert('Error deleting facility');
-      }
-    }
-  };
-
-  const handleBookingStatus = async (id, status, notes) => {
-    if (status === 'Rejected' && (!notes || notes.trim() === '')) {
-      alert('Please provide a reason for rejecting this booking.');
+    if (!window.confirm('Are you sure you want to delete this facility?')) {
       return;
     }
 
     try {
-      await api.put(`/bookings/${id}/status?status=${status}&adminNotes=${encodeURIComponent(notes || '')}`);
-      fetchBookings();
+      setError('');
+      await api.delete(`/facilities/${id}`);
+      await fetchFacilities();
+    } catch (err) {
+      console.error('Error deleting facility:', err);
+      setError(err.response?.data?.message || 'Unable to delete facility.');
+    }
+  };
 
-      if (status === 'Approved') {
-        alert('Booking approved successfully! The requester will be notified.');
-      } else if (status === 'Rejected') {
-        alert('Booking rejected. The requester will be notified with your reason.');
-      }
-    } catch (error) {
-      console.error('Error updating booking:', error);
-      alert('Error updating booking status');
+  const handleBookingStatus = async (id, status, notes) => {
+    if (status === 'Rejected' && (!notes || !notes.trim())) {
+      setError('A reason is required when rejecting a booking.');
+      return;
+    }
+
+    try {
+      setError('');
+
+      await api.put(
+        `/bookings/${id}/status?status=${status}&adminNotes=${encodeURIComponent(notes || '')}`
+      );
+
+      await fetchBookings();
+    } catch (err) {
+      console.error('Error updating booking:', err);
+      setError(err.response?.data?.message || 'Unable to update booking status.');
     }
   };
 
   const pendingBookings = bookings.filter(b => b.status === 'Pending');
   const approvedBookings = bookings.filter(b => b.status === 'Approved');
+  const rejectedBookings = bookings.filter(b => b.status === 'Rejected');
 
-  const filteredFacilities = facilities.filter(f =>
-    f.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    f.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    f.location.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredFacilities = facilities.filter(facility => {
+    const search = searchTerm.toLowerCase();
 
-  return (
-    <div style={{ fontFamily: 'Arial, sans-serif', maxWidth: '1400px', margin: '0 auto', padding: '30px', backgroundColor: '#f8f9fa', minHeight: '100vh' }}>
-      <div style={{ marginBottom: '30px' }}>
-        <h1 style={{ color: '#2c3e50', marginBottom: '8px', fontSize: '36px', fontWeight: 'bold' }}>Admin Dashboard</h1>
-        <p style={{ color: '#7f8c8d', fontSize: '16px' }}>Manage facilities, bookings, and municipal assets</p>
+    return (
+      facility.name?.toLowerCase().includes(search) ||
+      facility.type?.toLowerCase().includes(search) ||
+      facility.location?.toLowerCase().includes(search)
+    );
+  });
+
+  const filteredAdmins = admins.filter(admin => {
+    const search = adminSearchTerm.toLowerCase();
+
+    return (
+      admin.fullName?.toLowerCase().includes(search) ||
+      admin.username?.toLowerCase().includes(search) ||
+      admin.email?.toLowerCase().includes(search)
+    );
+  });
+
+  const getStatusClass = (status) => {
+    switch (status) {
+      case 'Available':
+        return 'status-available';
+      case 'Approved':
+        return 'status-approved';
+      case 'Rejected':
+        return 'status-rejected';
+      case 'Pending':
+        return 'status-pending';
+      default:
+        return 'status-unavailable';
+    }
+  };
+
+  const formatDate = (date) => {
+    if (!date) return 'Not specified';
+
+    return new Date(date).toLocaleDateString('en-ZA', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    });
+  };
+
+  const renderFacilityForm = (facility, isEditing = false) => (
+    <form
+      className="admin-form-panel"
+      onSubmit={isEditing ? handleUpdateFacility : handleAddFacility}
+    >
+      <h3>{isEditing ? 'Edit Facility' : 'Add New Facility'}</h3>
+
+      <div className="admin-form-grid">
+        <div className="admin-form-field">
+          <label>Facility Name *</label>
+          <input
+            type="text"
+            value={facility.name}
+            onChange={e =>
+              isEditing
+                ? setEditingFacility({ ...editingFacility, name: e.target.value })
+                : setNewFacility({ ...newFacility, name: e.target.value })
+            }
+            required
+          />
+        </div>
+
+        <div className="admin-form-field">
+          <label>Facility Type *</label>
+          <select
+            value={facility.type}
+            onChange={e =>
+              isEditing
+                ? setEditingFacility({ ...editingFacility, type: e.target.value })
+                : setNewFacility({ ...newFacility, type: e.target.value })
+            }
+          >
+            <option value="Building">Building</option>
+            <option value="Park">Park</option>
+            <option value="Facility">Facility</option>
+          </select>
+        </div>
+
+        <div className="admin-form-field">
+          <label>Location *</label>
+          <input
+            type="text"
+            value={facility.location}
+            onChange={e =>
+              isEditing
+                ? setEditingFacility({ ...editingFacility, location: e.target.value })
+                : setNewFacility({ ...newFacility, location: e.target.value })
+            }
+            required
+          />
+        </div>
+
+        <div className="admin-form-field">
+          <label>Capacity *</label>
+          <input
+            type="number"
+            min="1"
+            value={facility.capacity}
+            onChange={e =>
+              isEditing
+                ? setEditingFacility({ ...editingFacility, capacity: e.target.value })
+                : setNewFacility({ ...newFacility, capacity: e.target.value })
+            }
+            required
+          />
+        </div>
+
+        <div className="admin-form-field">
+          <label>Availability Status</label>
+          <select
+            value={facility.status}
+            onChange={e =>
+              isEditing
+                ? setEditingFacility({ ...editingFacility, status: e.target.value })
+                : setNewFacility({ ...newFacility, status: e.target.value })
+            }
+          >
+            <option value="Available">Available</option>
+            <option value="Unavailable">Unavailable</option>
+          </select>
+        </div>
+
+        <div className="admin-form-field admin-form-full">
+          <label>Description *</label>
+          <textarea
+            value={facility.description}
+            onChange={e =>
+              isEditing
+                ? setEditingFacility({ ...editingFacility, description: e.target.value })
+                : setNewFacility({ ...newFacility, description: e.target.value })
+            }
+            required
+          />
+        </div>
+
+        <div className="admin-form-field admin-form-full">
+          <label>Amenities</label>
+          <textarea
+            value={facility.amenities}
+            onChange={e =>
+              isEditing
+                ? setEditingFacility({ ...editingFacility, amenities: e.target.value })
+                : setNewFacility({ ...newFacility, amenities: e.target.value })
+            }
+            placeholder="e.g. Parking, Wi-Fi, Restrooms"
+          />
+        </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '30px' }}>
-        <div style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white', padding: '25px', borderRadius: '12px', boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)' }}>
-          <div style={{ fontSize: '14px', opacity: 0.9, marginBottom: '8px' }}>Total Facilities</div>
-          <div style={{ fontSize: '36px', fontWeight: 'bold' }}>{facilities.length}</div>
-        </div>
-        <div style={{ background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', color: 'white', padding: '25px', borderRadius: '12px', boxShadow: '0 4px 15px rgba(245, 87, 108, 0.4)' }}>
-          <div style={{ fontSize: '14px', opacity: 0.9, marginBottom: '8px' }}>Pending Bookings</div>
-          <div style={{ fontSize: '36px', fontWeight: 'bold' }}>{pendingBookings.length}</div>
-        </div>
-        <div style={{ background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)', color: 'white', padding: '25px', borderRadius: '12px', boxShadow: '0 4px 15px rgba(79, 172, 254, 0.4)' }}>
-          <div style={{ fontSize: '14px', opacity: 0.9, marginBottom: '8px' }}>Approved Bookings</div>
-          <div style={{ fontSize: '36px', fontWeight: 'bold' }}>{approvedBookings.length}</div>
-        </div>
-        <div style={{ background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)', color: 'white', padding: '25px', borderRadius: '12px', boxShadow: '0 4px 15px rgba(67, 233, 123, 0.4)' }}>
-          <div style={{ fontSize: '14px', opacity: 0.9, marginBottom: '8px' }}>Total Bookings</div>
-          <div style={{ fontSize: '36px', fontWeight: 'bold' }}>{bookings.length}</div>
-        </div>
-      </div>
+      <div className="admin-form-actions">
+        <button className="dashboard-button" type="submit" disabled={saving}>
+          <FaCheck />
+          {saving ? 'Saving...' : isEditing ? 'Update Facility' : 'Add Facility'}
+        </button>
 
-      <div style={{ marginBottom: '30px', borderBottom: '3px solid #ecf0f1', display: 'flex', gap: '5px' }}>
-        <button onClick={() => setActiveTab('facilities')} style={{ padding: '15px 30px', backgroundColor: activeTab === 'facilities' ? '#3498db' : 'transparent', color: activeTab === 'facilities' ? 'white' : '#2c3e50', border: 'none', borderRadius: '8px 8px 0 0', cursor: 'pointer', fontSize: '16px', fontWeight: 'bold', transition: 'all 0.3s', transform: activeTab === 'facilities' ? 'translateY(3px)' : 'translateY(0)' }}>Facilities</button>
-        <button onClick={() => setActiveTab('bookings')} style={{ padding: '15px 30px', backgroundColor: activeTab === 'bookings' ? '#3498db' : 'transparent', color: activeTab === 'bookings' ? 'white' : '#2c3e50', border: 'none', borderRadius: '8px 8px 0 0', cursor: 'pointer', fontSize: '16px', fontWeight: 'bold', transition: 'all 0.3s', transform: activeTab === 'bookings' ? 'translateY(3px)' : 'translateY(0)', position: 'relative' }}>
-          Bookings
-          {pendingBookings.length > 0 && <span style={{ position: 'absolute', top: '5px', right: '5px', backgroundColor: '#e74c3c', color: 'white', borderRadius: '50%', padding: '4px 8px', fontSize: '12px', fontWeight: 'bold' }}>{pendingBookings.length}</span>}
+        <button
+          className="dashboard-button button-secondary"
+          type="button"
+          onClick={() => {
+            setEditingFacility(null);
+            setShowAddFacility(false);
+          }}
+        >
+          Cancel
         </button>
       </div>
+    </form>
+  );
 
-      {activeTab === 'facilities' && (
+  const renderBookingCard = (booking) => (
+    <article
+      key={booking.id}
+      className={`booking-admin-card ${booking.status.toLowerCase()}`}
+    >
+      <div className="booking-admin-header">
         <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px', gap: '15px' }}>
-            <input type="text" placeholder="Search facilities..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={{ flex: 1, padding: '12px 20px', borderRadius: '8px', border: '2px solid #ecf0f1', fontSize: '16px', transition: 'border-color 0.3s' }} onFocus={(e) => e.target.style.borderColor = '#3498db'} onBlur={(e) => e.target.style.borderColor = '#ecf0f1'} />
-            <button onClick={() => setShowAddFacility(!showAddFacility)} style={{ padding: '12px 30px', background: showAddFacility ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '16px', fontWeight: 'bold', boxShadow: '0 4px 15px rgba(67, 233, 123, 0.4)', transition: 'transform 0.2s' }} onMouseEnter={(e) => e.target.style.transform = 'translateY(-2px)'} onMouseLeave={(e) => e.target.style.transform = 'translateY(0)'}>{showAddFacility ? 'Cancel' : '+ Add New Facility'}</button>
-          </div>
+          <h3>{booking.facility?.name || 'Municipal Facility'}</h3>
+          <p>Requested by {booking.requesterName}</p>
+        </div>
 
-          {showAddFacility && (
-            <div style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', padding: '30px', borderRadius: '12px', marginBottom: '30px', boxShadow: '0 8px 25px rgba(102, 126, 234, 0.3)' }}>
-              <h3 style={{ color: 'white', marginTop: 0, marginBottom: '20px' }}>Add New Facility</h3>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-                <input type="text" placeholder="Facility Name" value={newFacility.name} onChange={(e) => setNewFacility({ ...newFacility, name: e.target.value })} required style={{ padding: '12px', borderRadius: '8px', border: 'none', fontSize: '16px' }} />
-                <select value={newFacility.type} onChange={(e) => setNewFacility({ ...newFacility, type: e.target.value })} style={{ padding: '12px', borderRadius: '8px', border: 'none', fontSize: '16px' }}><option value="Building">Building</option><option value="Park">Park</option><option value="Facility">Facility</option></select>
-                <input type="text" placeholder="Location" value={newFacility.location} onChange={(e) => setNewFacility({ ...newFacility, location: e.target.value })} required style={{ padding: '12px', borderRadius: '8px', border: 'none', fontSize: '16px' }} />
-                <input type="number" placeholder="Capacity" value={newFacility.capacity} onChange={(e) => setNewFacility({ ...newFacility, capacity: parseInt(e.target.value) })} required style={{ padding: '12px', borderRadius: '8px', border: 'none', fontSize: '16px' }} />
-              </div>
-              <textarea placeholder="Description" value={newFacility.description} onChange={(e) => setNewFacility({ ...newFacility, description: e.target.value })} required style={{ width: '100%', padding: '12px', borderRadius: '8px', border: 'none', marginTop: '15px', minHeight: '80px', fontSize: '16px', resize: 'vertical' }} />
-              <input type="text" placeholder="Amenities (comma separated)" value={newFacility.amenities} onChange={(e) => setNewFacility({ ...newFacility, amenities: e.target.value })} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: 'none', marginTop: '15px', fontSize: '16px' }} />
-              <button onClick={handleAddFacility} style={{ marginTop: '20px', padding: '14px 30px', backgroundColor: 'white', color: '#667eea', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '16px', fontWeight: 'bold', boxShadow: '0 4px 15px rgba(0,0,0,0.2)' }}>Add Facility</button>
-            </div>
-          )}
+        <span className={`status-badge ${getStatusClass(booking.status)}`}>
+          {booking.status}
+        </span>
+      </div>
 
-          {editingFacility && (
-            <div style={{ background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', padding: '30px', borderRadius: '12px', marginBottom: '30px', boxShadow: '0 8px 25px rgba(245, 87, 108, 0.3)' }}>
-              <h3 style={{ color: 'white', marginTop: 0, marginBottom: '20px' }}>Edit Facility</h3>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
-                <input type="text" placeholder="Facility Name" value={editingFacility.name} onChange={(e) => setEditingFacility({ ...editingFacility, name: e.target.value })} required style={{ padding: '12px', borderRadius: '8px', border: 'none', fontSize: '16px' }} />
-                <select value={editingFacility.type} onChange={(e) => setEditingFacility({ ...editingFacility, type: e.target.value })} style={{ padding: '12px', borderRadius: '8px', border: 'none', fontSize: '16px' }}><option value="Building">Building</option><option value="Park">Park</option><option value="Facility">Facility</option></select>
-                <input type="text" placeholder="Location" value={editingFacility.location} onChange={(e) => setEditingFacility({ ...editingFacility, location: e.target.value })} required style={{ padding: '12px', borderRadius: '8px', border: 'none', fontSize: '16px' }} />
-                <input type="number" placeholder="Capacity" value={editingFacility.capacity} onChange={(e) => setEditingFacility({ ...editingFacility, capacity: parseInt(e.target.value) })} required style={{ padding: '12px', borderRadius: '8px', border: 'none', fontSize: '16px' }} />
-              </div>
-              <textarea placeholder="Description" value={editingFacility.description} onChange={(e) => setEditingFacility({ ...editingFacility, description: e.target.value })} required style={{ width: '100%', padding: '12px', borderRadius: '8px', border: 'none', marginTop: '15px', minHeight: '80px', fontSize: '16px', resize: 'vertical' }} />
-              <input type="text" placeholder="Amenities (comma separated)" value={editingFacility.amenities} onChange={(e) => setEditingFacility({ ...editingFacility, amenities: e.target.value })} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: 'none', marginTop: '15px', fontSize: '16px' }} />
-              <div style={{ marginTop: '20px', display: 'flex', gap: '10px' }}>
-                <button onClick={handleUpdateFacility} style={{ padding: '14px 30px', backgroundColor: 'white', color: '#f5576c', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '16px', fontWeight: 'bold', boxShadow: '0 4px 15px rgba(0,0,0,0.2)' }}>Update Facility</button>
-                <button onClick={() => setEditingFacility(null)} style={{ padding: '14px 30px', backgroundColor: 'rgba(255,255,255,0.3)', color: 'white', border: '2px solid white', borderRadius: '8px', cursor: 'pointer', fontSize: '16px', fontWeight: 'bold' }}>Cancel</button>
-              </div>
-            </div>
-          )}
+      <div className="booking-admin-details">
+        <p><strong>Email:</strong> {booking.requesterEmail}</p>
+        <p><strong>Phone:</strong> {booking.requesterPhone}</p>
+        <p><strong>Date:</strong> {formatDate(booking.bookingDate)}</p>
+        <p><strong>Time:</strong> {booking.startTime} – {booking.endTime}</p>
+        <p><strong>Attendees:</strong> {booking.expectedAttendees}</p>
+        <p><strong>Requested:</strong> {formatDate(booking.requestDate)}</p>
+      </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', gap: '25px' }}>
-            {filteredFacilities.map((facility) => (
-              <div key={facility.id} style={{ backgroundColor: 'white', padding: '25px', borderRadius: '12px', boxShadow: '0 4px 15px rgba(0,0,0,0.08)', transition: 'transform 0.3s, box-shadow 0.3s', cursor: 'pointer' }} onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-5px)'; e.currentTarget.style.boxShadow = '0 8px 25px rgba(0,0,0,0.15)'; }} onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 15px rgba(0,0,0,0.08)'; }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '15px' }}>
-                  <h3 style={{ color: '#2c3e50', marginTop: 0, fontSize: '20px' }}>{facility.name}</h3>
-                  <span style={{ padding: '6px 12px', backgroundColor: facility.status === 'Available' ? '#27ae60' : '#e74c3c', color: 'white', borderRadius: '20px', fontSize: '12px', fontWeight: 'bold' }}>{facility.status}</span>
-                </div>
-                <div style={{ marginBottom: '15px' }}><span style={{ display: 'inline-block', padding: '6px 14px', backgroundColor: facility.type === 'Building' ? '#3498db' : facility.type === 'Park' ? '#27ae60' : '#9b59b6', color: 'white', borderRadius: '20px', fontSize: '13px', fontWeight: 'bold' }}>{facility.type}</span></div>
-                <div style={{ color: '#555', fontSize: '14px', lineHeight: '1.6', marginBottom: '15px' }}>
-                  <p style={{ margin: '8px 0' }}><strong>Location:</strong> {facility.location}</p>
-                  <p style={{ margin: '8px 0' }}><strong>Capacity:</strong> {facility.capacity} people</p>
-                  <p style={{ margin: '8px 0' }}>{facility.description}</p>
-                  <p style={{ margin: '8px 0' }}><strong>Amenities:</strong> {facility.amenities}</p>
-                </div>
-                <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
-                  <button onClick={() => setEditingFacility(facility)} style={{ flex: 1, padding: '10px', backgroundColor: '#f39c12', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', transition: 'background-color 0.3s' }} onMouseEnter={(e) => e.target.style.backgroundColor = '#e67e22'} onMouseLeave={(e) => e.target.style.backgroundColor = '#f39c12'}>Edit</button>
-                  <button onClick={() => handleDeleteFacility(facility.id)} style={{ flex: 1, padding: '10px', backgroundColor: '#e74c3c', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', transition: 'background-color 0.3s' }} onMouseEnter={(e) => e.target.style.backgroundColor = '#c0392b'} onMouseLeave={(e) => e.target.style.backgroundColor = '#e74c3c'}>Delete</button>
-                </div>
-              </div>
-            ))}
-          </div>
+      <div className="booking-purpose">
+        <h4>Booking Purpose</h4>
+        <p>{booking.purpose}</p>
+      </div>
+
+      {booking.adminNotes && (
+        <div className="admin-notes">
+          <strong>Administrator Notes:</strong> {booking.adminNotes}
         </div>
       )}
 
-      {activeTab === 'bookings' && (
+      {booking.status === 'Pending' && (
+        <div className="booking-admin-actions">
+          <button
+            className="dashboard-button button-success"
+            onClick={() => {
+              const notes = window.prompt('Add optional approval notes:');
+
+              if (notes !== null) {
+                handleBookingStatus(booking.id, 'Approved', notes);
+              }
+            }}
+          >
+            <FaCheck /> Approve
+          </button>
+
+          <button
+            className="dashboard-button button-danger"
+            onClick={() => {
+              const notes = window.prompt('Please provide a reason for rejection:');
+
+              if (notes !== null && notes.trim()) {
+                handleBookingStatus(booking.id, 'Rejected', notes);
+              } else if (notes !== null) {
+                window.alert('A rejection reason is required.');
+              }
+            }}
+          >
+            <FaTimes /> Reject
+          </button>
+        </div>
+      )}
+    </article>
+  );
+
+  return (
+    <div className="admin-dashboard">
+      <div className="dashboard-heading">
         <div>
-          <h2 style={{ color: '#2c3e50', display: 'flex', alignItems: 'center', gap: '10px' }}>Pending Booking Requests {pendingBookings.length > 0 && <span style={{ backgroundColor: '#e74c3c', color: 'white', borderRadius: '50%', padding: '6px 12px', fontSize: '16px', fontWeight: 'bold' }}>{pendingBookings.length}</span>}</h2>
-          {pendingBookings.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '60px', backgroundColor: 'white', borderRadius: '12px', boxShadow: '0 4px 15px rgba(0,0,0,0.08)' }}><div style={{ fontSize: '60px', marginBottom: '20px' }}>?</div><p style={{ color: '#7f8c8d', fontSize: '18px' }}>No pending booking requests</p></div>
-          ) : (
-            <div style={{ display: 'grid', gap: '25px' }}>
-              {pendingBookings.map((booking) => (
-                <div key={booking.id} style={{ background: 'linear-gradient(135deg, #fff3cd 0%, #ffe5a0 100%)', padding: '30px', borderRadius: '12px', boxShadow: '0 4px 15px rgba(255, 193, 7, 0.3)', border: '3px solid #ffc107' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
-                    <h3 style={{ marginTop: 0, color: '#2c3e50', fontSize: '22px' }}>{booking.facility?.name}</h3>
-                    <span style={{ padding: '8px 16px', backgroundColor: '#ffc107', color: '#2c3e50', borderRadius: '20px', fontSize: '14px', fontWeight: 'bold' }}>{booking.status}</span>
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '20px', color: '#2c3e50' }}>
-                    <p style={{ margin: 0 }}><strong>Requester:</strong> {booking.requesterName}</p>
-                    <p style={{ margin: 0 }}><strong>Email:</strong> {booking.requesterEmail}</p>
-                    <p style={{ margin: 0 }}><strong>Phone:</strong> {booking.requesterPhone}</p>
-                    <p style={{ margin: 0 }}><strong>Date:</strong> {new Date(booking.bookingDate).toLocaleDateString()}</p>
-                    <p style={{ margin: 0 }}><strong>Time:</strong> {booking.startTime} - {booking.endTime}</p>
-                    <p style={{ margin: 0 }}><strong>Attendees:</strong> {booking.expectedAttendees}</p>
-                  </div>
-                  <div style={{ backgroundColor: '#fff', padding: '20px', borderRadius: '8px', marginBottom: '20px', border: '2px solid #ffc107' }}>
-                    <h4 style={{ marginTop: 0, color: '#2c3e50', fontSize: '16px' }}>Booking Purpose / Reason:</h4>
-                    <p style={{ margin: 0, color: '#2c3e50', fontSize: '15px', lineHeight: '1.6' }}>{booking.purpose}</p>
-                  </div>
-                  <p style={{ fontSize: '13px', color: '#7f8c8d', marginBottom: '20px' }}>Requested on: {new Date(booking.requestDate).toLocaleString()}</p>
-                  <div style={{ display: 'flex', gap: '15px' }}>
-                    <button onClick={() => { const notes = prompt('Add admin notes (optional - will be sent to requester):'); if (notes !== null) { handleBookingStatus(booking.id, 'Approved', notes); } }} style={{ flex: 1, padding: '14px', background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '16px', fontWeight: 'bold', boxShadow: '0 4px 15px rgba(67, 233, 123, 0.4)', transition: 'transform 0.2s' }} onMouseEnter={(e) => e.target.style.transform = 'translateY(-2px)'} onMouseLeave={(e) => e.target.style.transform = 'translateY(0)'}>Approve</button>
-                    <button onClick={() => { const notes = prompt('REQUIRED: Please provide a reason for rejection (this will be sent to the requester):'); if (notes && notes.trim() !== '') { handleBookingStatus(booking.id, 'Rejected', notes); } else if (notes !== null) { alert('Rejection reason is required. Please provide a reason why this booking is being rejected.'); } }} style={{ flex: 1, padding: '14px', background: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '16px', fontWeight: 'bold', boxShadow: '0 4px 15px rgba(250, 112, 154, 0.4)', transition: 'transform 0.2s' }} onMouseEnter={(e) => e.target.style.transform = 'translateY(-2px)'} onMouseLeave={(e) => e.target.style.transform = 'translateY(0)'}>Reject</button>
-                  </div>
+          <span className="section-eyebrow">MANAGEMENT OVERVIEW</span>
+          <h1>Admin Dashboard</h1>
+          <p>Manage municipal facilities, booking requests and administrator accounts.</p>
+        </div>
+
+        <div className="dashboard-date">
+          <FaCalendarAlt /> {new Date().toLocaleDateString('en-ZA', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric'
+          })}
+        </div>
+      </div>
+
+      {error && <div className="dashboard-error">{error}</div>}
+
+      <section className="dashboard-stats">
+        <div className="stat-card">
+          <span className="stat-icon"><FaBuilding /></span>
+          <div className="stat-info">
+            <p>Total Facilities</p>
+            <strong>{facilities.length}</strong>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <span className="stat-icon"><FaClock /></span>
+          <div className="stat-info">
+            <p>Pending Bookings</p>
+            <strong>{pendingBookings.length}</strong>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <span className="stat-icon"><FaCalendarCheck /></span>
+          <div className="stat-info">
+            <p>Approved Bookings</p>
+            <strong>{approvedBookings.length}</strong>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <span className="stat-icon"><FaClipboardList /></span>
+          <div className="stat-info">
+            <p>Total Bookings</p>
+            <strong>{bookings.length}</strong>
+          </div>
+        </div>
+      </section>
+
+      <div className="dashboard-tabs">
+        <button
+          className={`dashboard-tab ${activeTab === 'facilities' ? 'active' : ''}`}
+          onClick={() => setActiveTab('facilities')}
+        >
+          <FaBuilding /> Facilities
+        </button>
+
+        <button
+          className={`dashboard-tab ${activeTab === 'bookings' ? 'active' : ''}`}
+          onClick={() => setActiveTab('bookings')}
+        >
+          <FaClipboardList /> Bookings
+          {pendingBookings.length > 0 && (
+            <span className="tab-count">{pendingBookings.length}</span>
+          )}
+        </button>
+
+        <button
+          className={`dashboard-tab ${activeTab === 'administrators' ? 'active' : ''}`}
+          onClick={() => {
+            setShowAddAdmin(false);
+            setActiveTab('administrators');
+          }}
+        >
+          <FaUserShield /> Administrators
+          <span className="tab-count admin-tab-count">{admins.length}</span>
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="dashboard-empty">
+          <p>Loading dashboard information...</p>
+        </div>
+      ) : (
+        <>
+          {activeTab === 'facilities' && (
+            <section className="dashboard-section">
+              <div className="dashboard-section-heading">
+                <div>
+                  <h2>Facility Management</h2>
+                  <p>View, add and manage municipal facilities.</p>
                 </div>
-              ))}
-            </div>
+              </div>
+
+              <div className="dashboard-actions">
+                <div style={{ position: 'relative', flex: 1 }}>
+                  <FaSearch
+                    style={{
+                      position: 'absolute',
+                      left: 14,
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      color: '#8293a5'
+                    }}
+                  />
+
+                  <input
+                    className="dashboard-search"
+                    style={{ paddingLeft: 40 }}
+                    type="search"
+                    placeholder="Search by name, type or location..."
+                    value={searchTerm}
+                    onChange={e => setSearchTerm(e.target.value)}
+                  />
+                </div>
+
+                <button
+                  className="dashboard-button"
+                  onClick={() => {
+                    setEditingFacility(null);
+                    setShowAddFacility(!showAddFacility);
+                  }}
+                >
+                  <FaPlus />
+                  {showAddFacility ? 'Cancel' : 'Add Facility'}
+                </button>
+              </div>
+
+              {showAddFacility && renderFacilityForm(newFacility)}
+
+              {editingFacility && renderFacilityForm(editingFacility, true)}
+
+              {filteredFacilities.length === 0 ? (
+                <div className="dashboard-empty">
+                  <FaBuilding />
+                  <h3>No facilities found</h3>
+                  <p>Try a different search or add a new facility.</p>
+                </div>
+              ) : (
+                <div className="facility-admin-grid">
+                  {filteredFacilities.map(facility => (
+                    <article className="facility-admin-card" key={facility.id}>
+                      <div className="facility-card-header">
+                        <h3>{facility.name}</h3>
+                        <span className={`status-badge ${getStatusClass(facility.status)}`}>
+                          {facility.status}
+                        </span>
+                      </div>
+
+                      <span className="facility-type">{facility.type}</span>
+
+                      <p><FaMapMarkerAlt /> {facility.location}</p>
+                      <p><FaUsers /> Capacity: {facility.capacity} people</p>
+                      <p>{facility.description}</p>
+                      <p><strong>Amenities:</strong> {facility.amenities || 'Not specified'}</p>
+
+                      <div className="facility-admin-actions">
+                        <button
+                          type="button"
+                          className="dashboard-button button-secondary"
+                          onClick={() => handleEditFacility(facility)}
+                        >
+                          <FaEdit /> Edit
+                        </button>
+
+                        <button
+                          className="dashboard-button button-danger"
+                          onClick={() => handleDeleteFacility(facility.id)}
+                        >
+                          <FaTrash /> Delete
+                        </button>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              )}
+            </section>
           )}
 
-          <h2 style={{ color: '#2c3e50', marginTop: '50px', display: 'flex', alignItems: 'center', gap: '10px' }}>Approved Bookings {approvedBookings.length > 0 && <span style={{ backgroundColor: '#27ae60', color: 'white', borderRadius: '50%', padding: '6px 12px', fontSize: '16px', fontWeight: 'bold' }}>{approvedBookings.length}</span>}</h2>
-          {approvedBookings.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '60px', backgroundColor: 'white', borderRadius: '12px', boxShadow: '0 4px 15px rgba(0,0,0,0.08)' }}><div style={{ fontSize: '60px', marginBottom: '20px' }}>-</div><p style={{ color: '#7f8c8d', fontSize: '18px' }}>No approved bookings yet</p></div>
-          ) : (
-            <div style={{ display: 'grid', gap: '20px' }}>
-              {approvedBookings.map((booking) => (
-                <div key={booking.id} style={{ background: 'linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%)', padding: '20px', borderRadius: '12px', border: '2px solid #27ae60', boxShadow: '0 4px 15px rgba(39, 174, 96, 0.2)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
-                      <h4 style={{ marginTop: 0, marginBottom: '8px', color: '#2c3e50', fontSize: '18px' }}>{booking.facility?.name} - {booking.requesterName}</h4>
-                      <p style={{ margin: 0, color: '#155724' }}><strong>Date:</strong> {new Date(booking.bookingDate).toLocaleDateString()} | <strong> Time:</strong> {booking.startTime} - {booking.endTime}</p>
-                    </div>
-                    <span style={{ padding: '8px 16px', backgroundColor: '#27ae60', color: 'white', borderRadius: '20px', fontSize: '14px', fontWeight: 'bold' }}>Approved</span>
-                  </div>
-                  {booking.adminNotes && <div style={{ marginTop: '15px', padding: '12px', backgroundColor: 'rgba(255,255,255,0.7)', borderRadius: '8px' }}><p style={{ margin: 0, fontSize: '14px', color: '#155724' }}><strong>Admin Notes:</strong> {booking.adminNotes}</p></div>}
+          {activeTab === 'bookings' && (
+            <section className="dashboard-section">
+              <div className="dashboard-section-heading">
+                <div>
+                  <h2>Booking Management</h2>
+                  <p>Review and manage municipal facility booking requests.</p>
                 </div>
-              ))}
-            </div>
+              </div>
+
+              <h3>Pending Requests ({pendingBookings.length})</h3>
+
+              {pendingBookings.length === 0 ? (
+                <div className="dashboard-empty">
+                  <FaCheck />
+                  <h3>No pending booking requests</h3>
+                  <p>You're all caught up!</p>
+                </div>
+              ) : (
+                <div className="booking-admin-list">
+                  {pendingBookings.map(renderBookingCard)}
+                </div>
+              )}
+
+              <div style={{ marginTop: 40 }}>
+                <h3>Approved Bookings ({approvedBookings.length})</h3>
+
+                {approvedBookings.length === 0 ? (
+                  <div className="dashboard-empty">
+                    <FaCalendarCheck />
+                    <h3>No approved bookings yet</h3>
+                  </div>
+                ) : (
+                  <div className="booking-admin-list">
+                    {approvedBookings.map(renderBookingCard)}
+                  </div>
+                )}
+              </div>
+
+              <div style={{ marginTop: 40 }}>
+                <h3>Rejected Bookings ({rejectedBookings.length})</h3>
+
+                {rejectedBookings.length === 0 ? (
+                  <div className="dashboard-empty">
+                    <FaTimes />
+                    <h3>No rejected bookings</h3>
+                  </div>
+                ) : (
+                  <div className="booking-admin-list">
+                    {rejectedBookings.map(renderBookingCard)}
+                  </div>
+                )}
+              </div>
+            </section>
           )}
-        </div>
+
+          {activeTab === 'administrators' && (
+            <section className="dashboard-section">
+              <div className="dashboard-section-heading">
+                <div>
+                  <h2>Administrator Management</h2>
+                  <p>View existing administrator accounts and create new accounts.</p>
+                </div>
+              </div>
+
+              <div className="dashboard-actions admin-management-actions">
+                <div className="admin-search-wrap">
+                  <FaSearch className="admin-search-icon" />
+
+                  <input
+                    className="dashboard-search"
+                    type="search"
+                    placeholder="Search by name, username or email..."
+                    value={adminSearchTerm}
+                    onChange={e => setAdminSearchTerm(e.target.value)}
+                  />
+                </div>
+
+                <button
+                  className="dashboard-button"
+                  type="button"
+                  onClick={() => setShowAddAdmin(!showAddAdmin)}
+                >
+                  <FaPlus />
+                  {showAddAdmin ? 'Cancel' : 'Add Administrator'}
+                </button>
+              </div>
+
+              {showAddAdmin && (
+                <form className="admin-form-panel" onSubmit={handleAddAdmin}>
+                  <h3>Create Administrator Account</h3>
+
+                  <div className="admin-form-grid">
+                    <div className="admin-form-field">
+                      <label htmlFor="admin-full-name">Full Name *</label>
+                      <input
+                        id="admin-full-name"
+                        type="text"
+                        autoComplete="name"
+                        value={newAdmin.fullName}
+                        onChange={e => setNewAdmin({ ...newAdmin, fullName: e.target.value })}
+                        required
+                      />
+                    </div>
+
+                    <div className="admin-form-field">
+                      <label htmlFor="admin-username">Username *</label>
+                      <input
+                        id="admin-username"
+                        type="text"
+                        autoComplete="username"
+                        value={newAdmin.username}
+                        onChange={e => setNewAdmin({ ...newAdmin, username: e.target.value })}
+                        required
+                      />
+                    </div>
+
+                    <div className="admin-form-field admin-form-full">
+                      <label htmlFor="admin-email">Email Address *</label>
+                      <input
+                        id="admin-email"
+                        type="email"
+                        autoComplete="email"
+                        value={newAdmin.email}
+                        onChange={e => setNewAdmin({ ...newAdmin, email: e.target.value })}
+                        required
+                      />
+                    </div>
+
+                    <div className="admin-form-field admin-form-full">
+                      <label htmlFor="admin-password">Temporary Password *</label>
+                      <input
+                        id="admin-password"
+                        type="password"
+                        autoComplete="new-password"
+                        minLength={12}
+                        value={newAdmin.password}
+                        onChange={e => setNewAdmin({ ...newAdmin, password: e.target.value })}
+                        required
+                      />
+
+                      <small className="admin-form-hint">
+                        Use at least 12 characters, including uppercase and lowercase letters,
+                        a number and a special character.
+                      </small>
+                    </div>
+                  </div>
+
+                  <div className="admin-form-actions">
+                    <button className="dashboard-button" type="submit" disabled={saving}>
+                      <FaCheck />
+                      {saving ? 'Creating...' : 'Create Administrator'}
+                    </button>
+
+                    <button
+                      className="dashboard-button button-secondary"
+                      type="button"
+                      onClick={() => {
+                        setShowAddAdmin(false);
+                        setNewAdmin(emptyAdmin);
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              )}
+
+              {filteredAdmins.length === 0 ? (
+                <div className="dashboard-empty">
+                  <FaUserShield />
+                  <h3>
+                    {admins.length === 0
+                      ? 'No administrators found'
+                      : 'No matching administrators'}
+                  </h3>
+
+                  <p>
+                    {admins.length === 0
+                      ? 'Administrator accounts will appear here once they are available.'
+                      : 'Try searching with a different name, username or email.'}
+                  </p>
+                </div>
+              ) : (
+                <div className="admin-management-grid">
+                  {filteredAdmins.map(admin => (
+                    <article className="admin-account-card" key={admin.id}>
+                      <div className="admin-account-heading">
+                        <span className="admin-account-icon">
+                          <FaUserShield />
+                        </span>
+
+                        <div>
+                          <h3>{admin.fullName}</h3>
+                          <span className="admin-account-role">Administrator</span>
+                        </div>
+                      </div>
+
+                      <div className="admin-account-details">
+                        <p><strong>Username</strong><span>{admin.username}</span></p>
+                        <p><strong>Email</strong><span>{admin.email}</span></p>
+                        <p><strong>Date Added</strong><span>{formatDate(admin.createdDate)}</span></p>
+                      </div>
+
+                      <div className="admin-account-actions">
+                        <button
+                          className="dashboard-button button-secondary"
+                          type="button"
+                          onClick={() => {
+                            setError('');
+                            setResetPassword('');
+                            setResetAdminId(resetAdminId === admin.id ? null : admin.id);
+                          }}
+                        >
+                          <FaKey />
+                          {resetAdminId === admin.id ? 'Cancel Reset' : 'Reset Password'}
+                        </button>
+                      </div>
+
+                      {resetAdminId === admin.id && (
+                        <form
+                          className="admin-reset-password-form"
+                          onSubmit={e => handleResetAdminPassword(e, admin)}
+                        >
+                          <div className="admin-form-field">
+                            <label htmlFor={`reset-password-${admin.id}`}>
+                              New Password *
+                            </label>
+                            <input
+                              id={`reset-password-${admin.id}`}
+                              type="password"
+                              autoComplete="new-password"
+                              minLength={12}
+                              value={resetPassword}
+                              onChange={e => setResetPassword(e.target.value)}
+                              placeholder="Enter a temporary password"
+                              required
+                            />
+                            <small className="admin-form-hint">
+                              At least 12 characters, including uppercase and lowercase letters,
+                              a number and a special character.
+                            </small>
+                          </div>
+
+                          <div className="admin-form-actions">
+                            <button
+                              className="dashboard-button"
+                              type="submit"
+                              disabled={saving}
+                            >
+                              <FaCheck />
+                              {saving ? 'Resetting...' : 'Confirm Password Reset'}
+                            </button>
+                            <button
+                              className="dashboard-button button-secondary"
+                              type="button"
+                              disabled={saving}
+                              onClick={() => {
+                                setResetAdminId(null);
+                                setResetPassword('');
+                              }}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </form>
+                      )}
+                    </article>
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
+        </>
       )}
     </div>
   );

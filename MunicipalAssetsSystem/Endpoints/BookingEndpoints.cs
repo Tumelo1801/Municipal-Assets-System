@@ -9,9 +9,11 @@ namespace MunicipalAssetsSystem.Endpoints
         public static void MapBookingEndpoints(this WebApplication app)
         {
             var group = app.MapGroup("/api/bookings").WithTags("Bookings");
+            var adminGroup = group.MapGroup("")
+                .RequireAuthorization();
 
             // GET: Get all bookings (with facility details)
-            group.MapGet("/", async (ApplicationDbContext db) =>
+            adminGroup.MapGet("/", async (ApplicationDbContext db) =>
             {
                 return await db.Bookings
                     .Include(b => b.Facility)
@@ -20,7 +22,7 @@ namespace MunicipalAssetsSystem.Endpoints
             });
 
             // GET: Get booking by ID
-            group.MapGet("/{id}", async (int id, ApplicationDbContext db) =>
+            adminGroup.MapGet("/{id}", async (int id, ApplicationDbContext db) =>
             {
                 var booking = await db.Bookings
                     .Include(b => b.Facility)
@@ -30,7 +32,7 @@ namespace MunicipalAssetsSystem.Endpoints
             });
 
             // GET: Get bookings by status
-            group.MapGet("/status/{status}", async (string status, ApplicationDbContext db) =>
+            adminGroup.MapGet("/status/{status}", async (string status, ApplicationDbContext db) =>
             {
                 return await db.Bookings
                     .Include(b => b.Facility)
@@ -51,7 +53,7 @@ namespace MunicipalAssetsSystem.Endpoints
             });
 
             // PUT: Update booking status (Approve/Reject)
-            group.MapPut("/{id}/status", async (int id, string status, string? adminNotes, ApplicationDbContext db) =>
+            adminGroup.MapPut("/{id}/status", async (int id, string status, string? adminNotes, ApplicationDbContext db) =>
             {
                 var booking = await db.Bookings.FindAsync(id);
                 if (booking is null) return Results.NotFound();
@@ -64,7 +66,7 @@ namespace MunicipalAssetsSystem.Endpoints
             });
 
             // DELETE: Delete booking
-            group.MapDelete("/{id}", async (int id, ApplicationDbContext db) =>
+            adminGroup.MapDelete("/{id}", async (int id, ApplicationDbContext db) =>
             {
                 var booking = await db.Bookings.FindAsync(id);
                 if (booking is null) return Results.NotFound();

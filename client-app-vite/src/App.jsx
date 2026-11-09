@@ -1,11 +1,14 @@
 
 import React, { useState, useEffect } from 'react';
+import './App.css';
 
 import AdminDashboard from './components/AdminDashboard.jsx';
 import PublicBooking from './components/PublicBooking.jsx';
 import InspectionForm from './components/InspectionForm.jsx';
 import Reports from './components/Reports.jsx';
 import Login from './components/Login.jsx';
+import ForgotPassword from './components/ForgotPassword.jsx';
+import ResetPassword from './components/ResetPassword.jsx';
 
 import {
   FaBuilding,
@@ -34,6 +37,15 @@ function App() {
         localStorage.removeItem('admin');
       }
     }
+
+    // Open the appropriate password recovery screen from the email link.
+    const path = window.location.pathname;
+
+    if (path === '/forgot-password') {
+      setCurrentPage('forgot-password');
+    } else if (path === '/reset-password') {
+      setCurrentPage('reset-password');
+    }
   }, []);
 
   const handleLogin = (admin) => {
@@ -47,114 +59,123 @@ function App() {
     setAdminData(null);
     setIsAuthenticated(false);
     setCurrentPage('public');
+    window.history.pushState({}, '', '/');
   };
 
-  if (
-    (currentPage === 'admin' ||
-      currentPage === 'inspection' ||
-      currentPage === 'reports') &&
-    !isAuthenticated
-  ) {
-    return <Login onLogin={handleLogin} />;
+  // Password recovery pages are public.
+  if (currentPage === 'forgot-password') {
+      return (
+          <ForgotPassword
+              onBackToLogin={() => setCurrentPage('admin')}
+          />
+      );
   }
 
-  const navButtonStyle = (page) => ({
-    padding: '10px 20px',
-    backgroundColor: currentPage === page ? '#3498db' : 'transparent',
-    color: 'white',
-    border: currentPage === page ? 'none' : '2px solid white',
-    borderRadius: '5px',
-    cursor: 'pointer',
-    fontSize: '16px',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px'
-  });
+  // ResetPassword will be added in the next step.
+ if (currentPage === 'reset-password') {
+      return (
+          <ResetPassword
+              onBackToLogin={() => setCurrentPage('admin')}
+          />
+      );
+  }
+
+  if (
+    ['admin', 'inspection', 'reports'].includes(currentPage) &&
+    !isAuthenticated
+  ) {
+    return (
+      <Login
+        onLogin={handleLogin}
+        onForgotPassword={() => setCurrentPage('forgot-password')}
+      />
+    );
+  }
+
+  const navigationItems = [
+    { id: 'public', label: 'Public Booking', icon: FaBuilding },
+    { id: 'admin', label: 'Dashboard', icon: FaUserShield },
+    { id: 'inspection', label: 'Inspections', icon: FaClipboardCheck },
+    { id: 'reports', label: 'Reports', icon: FaChartBar }
+  ];
 
   return (
-    <div className="App">
-      <nav
-        style={{
-          backgroundColor: '#2c3e50',
-          padding: '15px 30px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-          flexWrap: 'wrap',
-          gap: '15px'
-        }}
-      >
-        <h2
-          style={{
-            color: 'white',
-            margin: 0,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px'
-          }}
-        >
-          <FaBuilding /> Municipal Assets System
-        </h2>
+    <div className="app-shell">
+      <header className="app-header">
+        <div className="header-inner">
+          <button
+            className="brand"
+            onClick={() => {
+              setCurrentPage('public');
+              window.history.pushState({}, '', '/');
+            }}
+            aria-label="Go to public booking"
+          >
+            <span className="brand-icon">
+              <FaBuilding />
+            </span>
 
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            flexWrap: 'wrap'
-          }}
-        >
-          <button onClick={() => setCurrentPage('public')} style={navButtonStyle('public')}>
-            <FaBuilding /> Public Booking
+            <span className="brand-text">
+              <strong>Municipal Assets</strong>
+              <small>Management System</small>
+            </span>
           </button>
 
-          <button onClick={() => setCurrentPage('admin')} style={navButtonStyle('admin')}>
-            <FaUserShield /> Admin Dashboard
-          </button>
-
-          <button onClick={() => setCurrentPage('inspection')} style={navButtonStyle('inspection')}>
-            <FaClipboardCheck /> Inspections
-          </button>
-
-          <button onClick={() => setCurrentPage('reports')} style={navButtonStyle('reports')}>
-            <FaChartBar /> Reports
-          </button>
+          <nav className="main-navigation" aria-label="Main navigation">
+            {navigationItems.map(({ id, label, icon: Icon }) => (
+              <button
+                key={id}
+                className={`nav-link ${currentPage === id ? 'active' : ''}`}
+                onClick={() => setCurrentPage(id)}
+                aria-current={currentPage === id ? 'page' : undefined}
+              >
+                <Icon />
+                <span>{label}</span>
+              </button>
+            ))}
+          </nav>
 
           {isAuthenticated && (
-            <div style={{ marginLeft: '20px', display: 'flex', alignItems: 'center', gap: '15px' }}>
-              <span style={{ color: 'white', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                <FaUser /> {adminData?.fullName}
-              </span>
+            <div className="header-account">
+              <div className="account-details">
+                <span className="account-avatar">
+                  <FaUser />
+                </span>
 
-              <button
-                onClick={handleLogout}
-                style={{
-                  padding: '8px 16px',
-                  backgroundColor: '#e74c3c',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '5px',
-                  cursor: 'pointer',
-                  fontSize: '14px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '5px'
-                }}
-              >
-                <FaSignOutAlt /> Logout
+                <span className="account-name">
+                  {adminData?.fullName || 'Administrator'}
+                </span>
+              </div>
+
+              <button className="logout-button" onClick={handleLogout}>
+                <FaSignOutAlt />
+                <span>Logout</span>
               </button>
             </div>
           )}
         </div>
-      </nav>
+      </header>
 
-      <main>
+      <main className="app-main">
         {currentPage === 'public' && <PublicBooking />}
-        {currentPage === 'admin' && isAuthenticated && <AdminDashboard adminData={adminData} />}
-        {currentPage === 'inspection' && isAuthenticated && <InspectionForm adminData={adminData} />}
-        {currentPage === 'reports' && isAuthenticated && <Reports adminData={adminData} />}
+
+        {currentPage === 'admin' && isAuthenticated && (
+          <AdminDashboard adminData={adminData} />
+        )}
+
+        {currentPage === 'inspection' && isAuthenticated && (
+          <InspectionForm adminData={adminData} />
+        )}
+
+        {currentPage === 'reports' && isAuthenticated && (
+          <Reports adminData={adminData} />
+        )}
       </main>
+
+      <footer className="app-footer">
+        <p>Municipal Assets Management System</p>
+        <span>Facility management made simpler.</span>
+      </footer>
     </div>
   );
 }
