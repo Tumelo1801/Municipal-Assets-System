@@ -5,23 +5,10 @@ using Microsoft.IdentityModel.Tokens;
 using MunicipalAssetsSystem.Data;
 using MunicipalAssetsSystem.Endpoints;
 using System.Text;
-using Resend;
 using MunicipalAssetsSystem.Services;
 
 
 var builder = WebApplication.CreateBuilder(args);
-var resendApiKey = builder.Configuration["Resend:ApiKey"];
-
-if (string.IsNullOrWhiteSpace(resendApiKey))
-{
-    throw new InvalidOperationException("Resend API key is missing.");
-}
-
-builder.Services.AddResend(options =>
-{
-    options.ApiToken = resendApiKey;
-});
-
 
 
 // Configure backend port
@@ -30,9 +17,20 @@ var port = Environment.GetEnvironmentVariable("PORT") ??
 
 builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 
+
 // Database configuration
+var databasePath = Environment.GetEnvironmentVariable("DATABASE_PATH")
+                   ?? "municipal_assets.db";
+
+var databaseDirectory = Path.GetDirectoryName(databasePath);
+
+if (!string.IsNullOrWhiteSpace(databaseDirectory))
+{
+    Directory.CreateDirectory(databaseDirectory);
+}
+
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlite("Data Source=municipal_assets.db"));
+    options.UseSqlite($"Data Source={databasePath}"));
 
 // JWT configuration
 var jwtSecret = builder.Configuration["Jwt:Secret"];
@@ -96,6 +94,13 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddHostedService<BookingStatusBackgroundService>();
 
 var app = builder.Build();
+
+// Apply pending database migrations before the application starts
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    db.Database.Migrate();
+}
 
 // Development documentation
 if (app.Environment.IsDevelopment())
