@@ -8,6 +8,7 @@ using System.Text;
 using Resend;
 using MunicipalAssetsSystem.Services;
 
+
 var builder = WebApplication.CreateBuilder(args);
 var resendApiKey = builder.Configuration["Resend:ApiKey"];
 
@@ -21,7 +22,7 @@ builder.Services.AddResend(options =>
     options.ApiToken = resendApiKey;
 });
 
-builder.Services.AddScoped<EmailService>();
+
 
 // Configure backend port
 var port = Environment.GetEnvironmentVariable("PORT") ??
@@ -92,6 +93,7 @@ builder.Services.AddCors(options =>
 // Swagger
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddHostedService<BookingStatusBackgroundService>();
 
 var app = builder.Build();
 

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 
 import {
@@ -14,8 +15,6 @@ import {
   FaMapMarkerAlt,
   FaUsers,
   FaCalendarAlt,
-  FaUserShield,
-  FaKey
 } from 'react-icons/fa';
 
 import api from '../services/api';
@@ -31,12 +30,6 @@ const emptyFacility = {
   status: 'Available'
 };
 
-const emptyAdmin = {
-  fullName: '',
-  username: '',
-  email: '',
-  password: ''
-};
 
 function AdminDashboard() {
   const [facilities, setFacilities] = useState([]);
@@ -49,22 +42,8 @@ function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
-  const [admins, setAdmins] = useState([]);
-  const [showAddAdmin, setShowAddAdmin] = useState(false);
-  const [newAdmin, setNewAdmin] = useState(emptyAdmin);
-  const [adminSearchTerm, setAdminSearchTerm] = useState('');
-  const [resetAdminId, setResetAdminId] = useState(null);
-  const [resetPassword, setResetPassword] = useState('');
+  
 
-  useEffect(() => {
-    loadDashboard();
-  }, []);
-
-  useEffect(() => {
-    if (activeTab === 'administrators') {
-      fetchAdmins();
-    }
-  }, [activeTab]);
 
   const loadDashboard = async () => {
     try {
@@ -85,6 +64,9 @@ function AdminDashboard() {
       setLoading(false);
     }
   };
+  useEffect(() => {
+    loadDashboard();
+  }, []);
 
   const fetchFacilities = async () => {
     try {
@@ -106,78 +88,6 @@ function AdminDashboard() {
     }
   };
 
-  const fetchAdmins = async () => {
-    try {
-      setError('');
-      const response = await api.get('/auth/admins');
-      setAdmins(Array.isArray(response.data) ? response.data : []);
-    } catch (err) {
-      console.error('Error fetching administrators:', err);
-      setError(
-        err.response?.data?.message ||
-        'Unable to load administrator accounts. Please check that you are signed in as an administrator.'
-      );
-    }
-  };
-
-  const handleAddAdmin = async (e) => {
-    e.preventDefault();
-
-    try {
-      setSaving(true);
-      setError('');
-
-      await api.post('/auth/admins', newAdmin);
-
-      setNewAdmin(emptyAdmin);
-      setShowAddAdmin(false);
-      await fetchAdmins();
-    } catch (err) {
-      console.error('Error adding administrator:', err);
-      setError(
-        err.response?.data?.message ||
-        'Unable to create administrator account. Check the details and try again.'
-      );
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleResetAdminPassword = async (e, admin) => {
-    e.preventDefault();
-
-    if (!resetPassword) {
-      setError('Please enter a new password.');
-      return;
-    }
-
-    if (!window.confirm(`Reset the password for ${admin.fullName}?`)) {
-      return;
-    }
-
-    try {
-      setSaving(true);
-      setError('');
-
-      const response = await api.post(
-        `/auth/admins/${admin.id}/reset-password`,
-        { newPassword: resetPassword }
-      );
-
-      window.alert(response.data?.message || 'Administrator password reset successfully.');
-      setResetAdminId(null);
-      setResetPassword('');
-    } catch (err) {
-      console.error('Error resetting administrator password:', err);
-      setError(
-        err.response?.data?.message ||
-        'Unable to reset this administrator password. Please try again.'
-      );
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const handleAddFacility = async (e) => {
     e.preventDefault();
 
@@ -195,7 +105,9 @@ function AdminDashboard() {
       await fetchFacilities();
     } catch (err) {
       console.error('Error adding facility:', err);
-      setError(err.response?.data?.message || 'Unable to add facility.');
+      setError(
+        err.response?.data?.message || 'Unable to add facility.'
+      );
     } finally {
       setSaving(false);
     }
@@ -217,7 +129,9 @@ function AdminDashboard() {
       await fetchFacilities();
     } catch (err) {
       console.error('Error updating facility:', err);
-      setError(err.response?.data?.message || 'Unable to update facility.');
+      setError(
+        err.response?.data?.message || 'Unable to update facility.'
+      );
     } finally {
       setSaving(false);
     }
@@ -245,7 +159,9 @@ function AdminDashboard() {
       await fetchFacilities();
     } catch (err) {
       console.error('Error deleting facility:', err);
-      setError(err.response?.data?.message || 'Unable to delete facility.');
+      setError(
+        err.response?.data?.message || 'Unable to delete facility.'
+      );
     }
   };
 
@@ -265,13 +181,27 @@ function AdminDashboard() {
       await fetchBookings();
     } catch (err) {
       console.error('Error updating booking:', err);
-      setError(err.response?.data?.message || 'Unable to update booking status.');
+      setError(
+        err.response?.data?.message || 'Unable to update booking status.'
+      );
     }
   };
 
-  const pendingBookings = bookings.filter(b => b.status === 'Pending');
-  const approvedBookings = bookings.filter(b => b.status === 'Approved');
-  const rejectedBookings = bookings.filter(b => b.status === 'Rejected');
+  const pendingBookings = bookings.filter(
+    b => b.status === 'Pending'
+  );
+
+  const approvedBookings = bookings.filter(
+    b => b.status === 'Approved'
+  );
+
+  const rejectedBookings = bookings.filter(
+    b => b.status === 'Rejected'
+  );
+
+  const unattendedBookings = bookings.filter(
+  b => b.status === 'Unattended'
+  );
 
   const filteredFacilities = facilities.filter(facility => {
     const search = searchTerm.toLowerCase();
@@ -283,26 +213,25 @@ function AdminDashboard() {
     );
   });
 
-  const filteredAdmins = admins.filter(admin => {
-    const search = adminSearchTerm.toLowerCase();
-
-    return (
-      admin.fullName?.toLowerCase().includes(search) ||
-      admin.username?.toLowerCase().includes(search) ||
-      admin.email?.toLowerCase().includes(search)
-    );
-  });
-
   const getStatusClass = (status) => {
     switch (status) {
       case 'Available':
         return 'status-available';
+
       case 'Approved':
+      case 'Resolved':
         return 'status-approved';
+
       case 'Rejected':
         return 'status-rejected';
+
       case 'Pending':
+      case 'In Progress':
         return 'status-pending';
+      
+      case 'Unattended':
+        return 'status-unattended';
+
       default:
         return 'status-unavailable';
     }
@@ -333,8 +262,14 @@ function AdminDashboard() {
             value={facility.name}
             onChange={e =>
               isEditing
-                ? setEditingFacility({ ...editingFacility, name: e.target.value })
-                : setNewFacility({ ...newFacility, name: e.target.value })
+                ? setEditingFacility({
+                    ...editingFacility,
+                    name: e.target.value
+                  })
+                : setNewFacility({
+                    ...newFacility,
+                    name: e.target.value
+                  })
             }
             required
           />
@@ -346,8 +281,14 @@ function AdminDashboard() {
             value={facility.type}
             onChange={e =>
               isEditing
-                ? setEditingFacility({ ...editingFacility, type: e.target.value })
-                : setNewFacility({ ...newFacility, type: e.target.value })
+                ? setEditingFacility({
+                    ...editingFacility,
+                    type: e.target.value
+                  })
+                : setNewFacility({
+                    ...newFacility,
+                    type: e.target.value
+                  })
             }
           >
             <option value="Building">Building</option>
@@ -363,8 +304,14 @@ function AdminDashboard() {
             value={facility.location}
             onChange={e =>
               isEditing
-                ? setEditingFacility({ ...editingFacility, location: e.target.value })
-                : setNewFacility({ ...newFacility, location: e.target.value })
+                ? setEditingFacility({
+                    ...editingFacility,
+                    location: e.target.value
+                  })
+                : setNewFacility({
+                    ...newFacility,
+                    location: e.target.value
+                  })
             }
             required
           />
@@ -378,8 +325,14 @@ function AdminDashboard() {
             value={facility.capacity}
             onChange={e =>
               isEditing
-                ? setEditingFacility({ ...editingFacility, capacity: e.target.value })
-                : setNewFacility({ ...newFacility, capacity: e.target.value })
+                ? setEditingFacility({
+                    ...editingFacility,
+                    capacity: e.target.value
+                  })
+                : setNewFacility({
+                    ...newFacility,
+                    capacity: e.target.value
+                  })
             }
             required
           />
@@ -391,8 +344,14 @@ function AdminDashboard() {
             value={facility.status}
             onChange={e =>
               isEditing
-                ? setEditingFacility({ ...editingFacility, status: e.target.value })
-                : setNewFacility({ ...newFacility, status: e.target.value })
+                ? setEditingFacility({
+                    ...editingFacility,
+                    status: e.target.value
+                  })
+                : setNewFacility({
+                    ...newFacility,
+                    status: e.target.value
+                  })
             }
           >
             <option value="Available">Available</option>
@@ -406,8 +365,14 @@ function AdminDashboard() {
             value={facility.description}
             onChange={e =>
               isEditing
-                ? setEditingFacility({ ...editingFacility, description: e.target.value })
-                : setNewFacility({ ...newFacility, description: e.target.value })
+                ? setEditingFacility({
+                    ...editingFacility,
+                    description: e.target.value
+                  })
+                : setNewFacility({
+                    ...newFacility,
+                    description: e.target.value
+                  })
             }
             required
           />
@@ -419,8 +384,14 @@ function AdminDashboard() {
             value={facility.amenities}
             onChange={e =>
               isEditing
-                ? setEditingFacility({ ...editingFacility, amenities: e.target.value })
-                : setNewFacility({ ...newFacility, amenities: e.target.value })
+                ? setEditingFacility({
+                    ...editingFacility,
+                    amenities: e.target.value
+                  })
+                : setNewFacility({
+                    ...newFacility,
+                    amenities: e.target.value
+                  })
             }
             placeholder="e.g. Parking, Wi-Fi, Restrooms"
           />
@@ -428,9 +399,17 @@ function AdminDashboard() {
       </div>
 
       <div className="admin-form-actions">
-        <button className="dashboard-button" type="submit" disabled={saving}>
+        <button
+          className="dashboard-button"
+          type="submit"
+          disabled={saving}
+        >
           <FaCheck />
-          {saving ? 'Saving...' : isEditing ? 'Update Facility' : 'Add Facility'}
+          {saving
+            ? 'Saving...'
+            : isEditing
+              ? 'Update Facility'
+              : 'Add Facility'}
         </button>
 
         <button
@@ -523,11 +502,14 @@ function AdminDashboard() {
         <div>
           <span className="section-eyebrow">MANAGEMENT OVERVIEW</span>
           <h1>Admin Dashboard</h1>
-          <p>Manage municipal facilities, booking requests and administrator accounts.</p>
+          <p>
+            Manage municipal facilities, booking requests.
+          </p>
         </div>
 
         <div className="dashboard-date">
-          <FaCalendarAlt /> {new Date().toLocaleDateString('en-ZA', {
+          <FaCalendarAlt />{' '}
+          {new Date().toLocaleDateString('en-ZA', {
             day: 'numeric',
             month: 'long',
             year: 'numeric'
@@ -563,6 +545,16 @@ function AdminDashboard() {
         </div>
 
         <div className="stat-card">
+          <span className="stat-icon">
+            <FaClock />
+          </span>
+          <div className="stat-info">
+            <p>Unattended Bookings</p>
+            <strong>{unattendedBookings.length}</strong>
+          </div>
+        </div>
+
+        <div className="stat-card">
           <span className="stat-icon"><FaClipboardList /></span>
           <div className="stat-info">
             <p>Total Bookings</p>
@@ -572,34 +564,24 @@ function AdminDashboard() {
       </section>
 
       <div className="dashboard-tabs">
-        <button
-          className={`dashboard-tab ${activeTab === 'facilities' ? 'active' : ''}`}
-          onClick={() => setActiveTab('facilities')}
-        >
-          <FaBuilding /> Facilities
-        </button>
+  <button
+    className={`dashboard-tab ${activeTab === 'facilities' ? 'active' : ''}`}
+    onClick={() => setActiveTab('facilities')}
+  >
+    <FaBuilding /> Facilities
+  </button>
 
-        <button
-          className={`dashboard-tab ${activeTab === 'bookings' ? 'active' : ''}`}
-          onClick={() => setActiveTab('bookings')}
-        >
-          <FaClipboardList /> Bookings
-          {pendingBookings.length > 0 && (
-            <span className="tab-count">{pendingBookings.length}</span>
-          )}
-        </button>
+  <button
+    className={`dashboard-tab ${activeTab === 'bookings' ? 'active' : ''}`}
+    onClick={() => setActiveTab('bookings')}
+  >
+    <FaClipboardList /> Bookings
 
-        <button
-          className={`dashboard-tab ${activeTab === 'administrators' ? 'active' : ''}`}
-          onClick={() => {
-            setShowAddAdmin(false);
-            setActiveTab('administrators');
-          }}
-        >
-          <FaUserShield /> Administrators
-          <span className="tab-count admin-tab-count">{admins.length}</span>
-        </button>
-      </div>
+    {pendingBookings.length > 0 && (
+      <span className="tab-count">{pendingBookings.length}</span>
+    )}
+  </button>
+</div>
 
       {loading ? (
         <div className="dashboard-empty">
@@ -676,7 +658,10 @@ function AdminDashboard() {
                       <p><FaMapMarkerAlt /> {facility.location}</p>
                       <p><FaUsers /> Capacity: {facility.capacity} people</p>
                       <p>{facility.description}</p>
-                      <p><strong>Amenities:</strong> {facility.amenities || 'Not specified'}</p>
+                      <p>
+                        <strong>Amenities:</strong>{' '}
+                        {facility.amenities || 'Not specified'}
+                      </p>
 
                       <div className="facility-admin-actions">
                         <button
@@ -753,225 +738,24 @@ function AdminDashboard() {
                   </div>
                 )}
               </div>
-            </section>
-          )}
 
-          {activeTab === 'administrators' && (
-            <section className="dashboard-section">
-              <div className="dashboard-section-heading">
-                <div>
-                  <h2>Administrator Management</h2>
-                  <p>View existing administrator accounts and create new accounts.</p>
-                </div>
-              </div>
+              <div style={{ marginTop: 40 }}>
+                <h3>Unattended Bookings ({unattendedBookings.length})</h3>
 
-              <div className="dashboard-actions admin-management-actions">
-                <div className="admin-search-wrap">
-                  <FaSearch className="admin-search-icon" />
-
-                  <input
-                    className="dashboard-search"
-                    type="search"
-                    placeholder="Search by name, username or email..."
-                    value={adminSearchTerm}
-                    onChange={e => setAdminSearchTerm(e.target.value)}
-                  />
-                </div>
-
-                <button
-                  className="dashboard-button"
-                  type="button"
-                  onClick={() => setShowAddAdmin(!showAddAdmin)}
-                >
-                  <FaPlus />
-                  {showAddAdmin ? 'Cancel' : 'Add Administrator'}
-                </button>
-              </div>
-
-              {showAddAdmin && (
-                <form className="admin-form-panel" onSubmit={handleAddAdmin}>
-                  <h3>Create Administrator Account</h3>
-
-                  <div className="admin-form-grid">
-                    <div className="admin-form-field">
-                      <label htmlFor="admin-full-name">Full Name *</label>
-                      <input
-                        id="admin-full-name"
-                        type="text"
-                        autoComplete="name"
-                        value={newAdmin.fullName}
-                        onChange={e => setNewAdmin({ ...newAdmin, fullName: e.target.value })}
-                        required
-                      />
-                    </div>
-
-                    <div className="admin-form-field">
-                      <label htmlFor="admin-username">Username *</label>
-                      <input
-                        id="admin-username"
-                        type="text"
-                        autoComplete="username"
-                        value={newAdmin.username}
-                        onChange={e => setNewAdmin({ ...newAdmin, username: e.target.value })}
-                        required
-                      />
-                    </div>
-
-                    <div className="admin-form-field admin-form-full">
-                      <label htmlFor="admin-email">Email Address *</label>
-                      <input
-                        id="admin-email"
-                        type="email"
-                        autoComplete="email"
-                        value={newAdmin.email}
-                        onChange={e => setNewAdmin({ ...newAdmin, email: e.target.value })}
-                        required
-                      />
-                    </div>
-
-                    <div className="admin-form-field admin-form-full">
-                      <label htmlFor="admin-password">Temporary Password *</label>
-                      <input
-                        id="admin-password"
-                        type="password"
-                        autoComplete="new-password"
-                        minLength={12}
-                        value={newAdmin.password}
-                        onChange={e => setNewAdmin({ ...newAdmin, password: e.target.value })}
-                        required
-                      />
-
-                      <small className="admin-form-hint">
-                        Use at least 12 characters, including uppercase and lowercase letters,
-                        a number and a special character.
-                      </small>
-                    </div>
+                {unattendedBookings.length === 0 ? (
+                  <div className="dashboard-empty">
+                    <FaClock />
+                    <h3>No unattended bookings</h3>
+                    <p>All booking requests have been attended to.</p>
                   </div>
-
-                  <div className="admin-form-actions">
-                    <button className="dashboard-button" type="submit" disabled={saving}>
-                      <FaCheck />
-                      {saving ? 'Creating...' : 'Create Administrator'}
-                    </button>
-
-                    <button
-                      className="dashboard-button button-secondary"
-                      type="button"
-                      onClick={() => {
-                        setShowAddAdmin(false);
-                        setNewAdmin(emptyAdmin);
-                      }}
-                    >
-                      Cancel
-                    </button>
+                ) : (
+                  <div className="booking-admin-list">
+                    {unattendedBookings.map(renderBookingCard)}
                   </div>
-                </form>
-              )}
-
-              {filteredAdmins.length === 0 ? (
-                <div className="dashboard-empty">
-                  <FaUserShield />
-                  <h3>
-                    {admins.length === 0
-                      ? 'No administrators found'
-                      : 'No matching administrators'}
-                  </h3>
-
-                  <p>
-                    {admins.length === 0
-                      ? 'Administrator accounts will appear here once they are available.'
-                      : 'Try searching with a different name, username or email.'}
-                  </p>
-                </div>
-              ) : (
-                <div className="admin-management-grid">
-                  {filteredAdmins.map(admin => (
-                    <article className="admin-account-card" key={admin.id}>
-                      <div className="admin-account-heading">
-                        <span className="admin-account-icon">
-                          <FaUserShield />
-                        </span>
-
-                        <div>
-                          <h3>{admin.fullName}</h3>
-                          <span className="admin-account-role">Administrator</span>
-                        </div>
-                      </div>
-
-                      <div className="admin-account-details">
-                        <p><strong>Username</strong><span>{admin.username}</span></p>
-                        <p><strong>Email</strong><span>{admin.email}</span></p>
-                        <p><strong>Date Added</strong><span>{formatDate(admin.createdDate)}</span></p>
-                      </div>
-
-                      <div className="admin-account-actions">
-                        <button
-                          className="dashboard-button button-secondary"
-                          type="button"
-                          onClick={() => {
-                            setError('');
-                            setResetPassword('');
-                            setResetAdminId(resetAdminId === admin.id ? null : admin.id);
-                          }}
-                        >
-                          <FaKey />
-                          {resetAdminId === admin.id ? 'Cancel Reset' : 'Reset Password'}
-                        </button>
-                      </div>
-
-                      {resetAdminId === admin.id && (
-                        <form
-                          className="admin-reset-password-form"
-                          onSubmit={e => handleResetAdminPassword(e, admin)}
-                        >
-                          <div className="admin-form-field">
-                            <label htmlFor={`reset-password-${admin.id}`}>
-                              New Password *
-                            </label>
-                            <input
-                              id={`reset-password-${admin.id}`}
-                              type="password"
-                              autoComplete="new-password"
-                              minLength={12}
-                              value={resetPassword}
-                              onChange={e => setResetPassword(e.target.value)}
-                              placeholder="Enter a temporary password"
-                              required
-                            />
-                            <small className="admin-form-hint">
-                              At least 12 characters, including uppercase and lowercase letters,
-                              a number and a special character.
-                            </small>
-                          </div>
-
-                          <div className="admin-form-actions">
-                            <button
-                              className="dashboard-button"
-                              type="submit"
-                              disabled={saving}
-                            >
-                              <FaCheck />
-                              {saving ? 'Resetting...' : 'Confirm Password Reset'}
-                            </button>
-                            <button
-                              className="dashboard-button button-secondary"
-                              type="button"
-                              disabled={saving}
-                              onClick={() => {
-                                setResetAdminId(null);
-                                setResetPassword('');
-                              }}
-                            >
-                              Cancel
-                            </button>
-                          </div>
-                        </form>
-                      )}
-                    </article>
-                  ))}
-                </div>
-              )}
+                )}
+              </div>
             </section>
+                        
           )}
         </>
       )}

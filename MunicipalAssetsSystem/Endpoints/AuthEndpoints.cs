@@ -4,7 +4,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using MunicipalAssetsSystem.Data;
 using MunicipalAssetsSystem.Models;
-using MunicipalAssetsSystem.Services;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
@@ -109,155 +108,6 @@ namespace MunicipalAssetsSystem.Endpoints
                     Username = admin.Username,
                     FullName = admin.FullName,
                     Email = admin.Email
-                });
-            });
-
-            // FORGOT PASSWORD
-            group.MapPost("/forgot-password", async (
-                ForgotPasswordRequest request,
-                ApplicationDbContext db,
-                EmailService emailService,
-                IConfiguration configuration,
-                ILoggerFactory loggerFactory) =>
-            {
-                const string genericMessage =
-                    "If an administrator account exists for that email, a password reset link will be sent.";
-
-                var logger = loggerFactory.CreateLogger("AuthEndpoints");
-
-                if (string.IsNullOrWhiteSpace(request.Email))
-                    return Results.Ok(new { message = genericMessage });
-
-                var email = request.Email.Trim().ToLower();
-
-                var admin = await db.Admins.FirstOrDefaultAsync(
-                    a => a.Email.ToLower() == email);
-
-                if (admin == null)
-                    return Results.Ok(new { message = genericMessage });
-
-                var previousTokens = await db.PasswordResetTokens
-                    .Where(t => t.AdminId == admin.Id && !t.IsUsed)
-                    .ToListAsync();
-
-                db.PasswordResetTokens.RemoveRange(previousTokens);
-
-                var randomBytes = RandomNumberGenerator.GetBytes(32);
-
-                var resetToken = Convert.ToBase64String(randomBytes)
-                    .Replace("+", "-")
-                    .Replace("/", "_")
-                    .TrimEnd('=');
-
-                var tokenHash = Convert.ToHexString(
-                    SHA256.HashData(Encoding.UTF8.GetBytes(resetToken)));
-
-                db.PasswordResetTokens.Add(new PasswordResetToken
-                {
-                    AdminId = admin.Id,
-                    TokenHash = tokenHash,
-                    CreatedAt = DateTime.UtcNow,
-                    ExpiresAt = DateTime.UtcNow.AddMinutes(30),
-                    IsUsed = false
-                });
-
-                await db.SaveChangesAsync();
-
-                var frontendUrl = configuration["Frontend:BaseUrl"];
-
-                if (string.IsNullOrWhiteSpace(frontendUrl))
-                {
-                    logger.LogError("Frontend reset URL is not configured.");
-                    return Results.Ok(new { message = genericMessage });
-                }
-
-                var resetLink =
-                    $"{frontendUrl.TrimEnd('/')}/reset-password?token={Uri.EscapeDataString(resetToken)}";
-
-                try
-                {
-                    await emailService.SendPasswordResetEmailAsync(
-                        admin.Email, resetLink);
-                }
-                catch (Exception ex)
-                {
-                    logger.LogError(ex, "Failed to send password reset email.");
-
-                    var unusableToken = await db.PasswordResetTokens
-                        .FirstOrDefaultAsync(t => t.TokenHash == tokenHash);
-
-                    if (unusableToken != null)
-                    {
-                        db.PasswordResetTokens.Remove(unusableToken);
-                        await db.SaveChangesAsync();
-                    }
-                }
-
-                return Results.Ok(new { message = genericMessage });
-            });
-
-            // RESET PASSWORD
-            group.MapPost("/reset-password", async (
-                ResetPasswordRequest request,
-                ApplicationDbContext db) =>
-            {
-                if (string.IsNullOrWhiteSpace(request.Token) ||
-                    string.IsNullOrWhiteSpace(request.NewPassword))
-                {
-                    return Results.BadRequest(new
-                    {
-                        message = "Reset token and new password are required."
-                    });
-                }
-
-                if (request.NewPassword.Length < 12 ||
-                    !request.NewPassword.Any(char.IsUpper) ||
-                    !request.NewPassword.Any(char.IsLower) ||
-                    !request.NewPassword.Any(char.IsDigit) ||
-                    !request.NewPassword.Any(c => !char.IsLetterOrDigit(c)))
-                {
-                    return Results.BadRequest(new
-                    {
-                        message = "Password must be at least 12 characters and include uppercase, lowercase, numeric and special characters."
-                    });
-                }
-
-                var tokenHash = Convert.ToHexString(
-                    SHA256.HashData(Encoding.UTF8.GetBytes(request.Token)));
-
-                var resetRecord = await db.PasswordResetTokens
-                    .Include(t => t.Admin)
-                    .FirstOrDefaultAsync(t => t.TokenHash == tokenHash);
-
-                if (resetRecord == null ||
-                    resetRecord.IsUsed ||
-                    resetRecord.ExpiresAt <= DateTime.UtcNow)
-                {
-                    return Results.BadRequest(new
-                    {
-                        message = "This password reset link is invalid or has expired."
-                    });
-                }
-
-                resetRecord.Admin.PasswordHash = PasswordHasher.HashPassword(
-                    resetRecord.Admin, request.NewPassword);
-
-                resetRecord.IsUsed = true;
-
-                var otherTokens = await db.PasswordResetTokens
-                    .Where(t => t.AdminId == resetRecord.AdminId &&
-                                t.Id != resetRecord.Id &&
-                                !t.IsUsed)
-                    .ToListAsync();
-
-                foreach (var token in otherTokens)
-                    token.IsUsed = true;
-
-                await db.SaveChangesAsync();
-
-                return Results.Ok(new
-                {
-                    message = "Your password has been reset successfully. You can now log in."
                 });
             });
 
@@ -426,15 +276,6 @@ namespace MunicipalAssetsSystem.Endpoints
 
                 admin.PasswordHash = PasswordHasher.HashPassword(admin, password);
 
-                var outstandingTokens = await db.PasswordResetTokens
-                    .Where(t => t.AdminId == admin.Id && !t.IsUsed)
-                    .ToListAsync();
-
-                foreach (var token in outstandingTokens)
-                {
-                    token.IsUsed = true;
-                }
-
                 await db.SaveChangesAsync();
 
                 return Results.Ok(new
@@ -459,12 +300,6 @@ namespace MunicipalAssetsSystem.Endpoints
 
     public record LoginRequest(string Username, string Password);
 
-    public record RegisterRequest(
-        string Username,
-        string Password,
-        string FullName,
-        string Email);
-
     public record LoginResponse
     {
         public bool Success { get; set; }
@@ -474,12 +309,6 @@ namespace MunicipalAssetsSystem.Endpoints
         public string FullName { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
     }
-
-    public record ForgotPasswordRequest(string Email);
-
-    public record ResetPasswordRequest(
-        string Token,
-        string NewPassword);
 
     public record CreateAdminRequest(
         string FullName,

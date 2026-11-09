@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿
+using Microsoft.EntityFrameworkCore;
 using MunicipalAssetsSystem.Models;
 
 namespace MunicipalAssetsSystem.Data
@@ -13,8 +14,7 @@ namespace MunicipalAssetsSystem.Data
         public DbSet<Facility> Facilities { get; set; }
         public DbSet<Booking> Bookings { get; set; }
         public DbSet<Inspection> Inspections { get; set; }
-        public DbSet<Admin> Admins { get; set; }  
-        public DbSet<PasswordResetToken> PasswordResetTokens { get; set; }
+        public DbSet<Admin> Admins { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -32,16 +32,6 @@ namespace MunicipalAssetsSystem.Data
                 .WithMany()
                 .HasForeignKey(i => i.BookingId)
                 .OnDelete(DeleteBehavior.Cascade);
-
-            modelBuilder.Entity<PasswordResetToken>()
-                .HasOne(p => p.Admin)
-                .WithMany()
-                .HasForeignKey(p => p.AdminId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            modelBuilder.Entity<PasswordResetToken>()
-                .HasIndex(p => p.TokenHash)
-                .IsUnique();
         }
     }
 }

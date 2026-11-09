@@ -190,38 +190,6 @@ namespace MunicipalAssetsSystem.Migrations
                     b.ToTable("Inspections");
                 });
 
-            modelBuilder.Entity("MunicipalAssetsSystem.Models.PasswordResetToken", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("AdminId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime>("ExpiresAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<bool>("IsUsed")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("TokenHash")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("AdminId");
-
-                    b.HasIndex("TokenHash")
-                        .IsUnique();
-
-                    b.ToTable("PasswordResetTokens");
-                });
-
             modelBuilder.Entity("MunicipalAssetsSystem.Models.Booking", b =>
                 {
                     b.HasOne("MunicipalAssetsSystem.Models.Facility", "Facility")
@@ -242,17 +210,6 @@ namespace MunicipalAssetsSystem.Migrations
                         .IsRequired();
 
                     b.Navigation("Booking");
-                });
-
-            modelBuilder.Entity("MunicipalAssetsSystem.Models.PasswordResetToken", b =>
-                {
-                    b.HasOne("MunicipalAssetsSystem.Models.Admin", "Admin")
-                        .WithMany()
-                        .HasForeignKey("AdminId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Admin");
                 });
 #pragma warning restore 612, 618
         }

@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import api from '../services/api';
 import './Login.css';
 
-function Login({ onLogin, onForgotPassword }) {
+function Login({ onLogin }) {
   const [loginData, setLoginData] = useState({
     username: '',
     password: ''
@@ -14,7 +14,6 @@ function Login({ onLogin, onForgotPassword }) {
 
   const handleLogin = async (e) => {
     e.preventDefault();
-
     setError('');
     setLoading(true);
 
@@ -38,22 +37,16 @@ function Login({ onLogin, onForgotPassword }) {
   return (
     <div className="login-page">
       <div className="login-card">
-
         <div className="login-heading">
           <h1>Municipal Assets System</h1>
           <p>Administrator Login</p>
         </div>
 
-        {error && (
-          <div className="login-error">
-            {error}
-          </div>
-        )}
+        {error && <div className="login-error">{error}</div>}
 
         <form onSubmit={handleLogin}>
           <div className="login-form-group">
             <label htmlFor="username">Username</label>
-
             <input
               id="username"
               type="text"
@@ -72,7 +65,6 @@ function Login({ onLogin, onForgotPassword }) {
 
           <div className="login-form-group">
             <label htmlFor="password">Password</label>
-
             <input
               id="password"
               type="password"
@@ -90,13 +82,10 @@ function Login({ onLogin, onForgotPassword }) {
           </div>
 
           <div className="forgot-password-container">
-            <button
-              type="button"
-              className="forgot-password-link"
-              onClick={onForgotPassword}
-            >
-              Forgot Password?
-            </button>
+            <p className="forgot-password-link">
+              Forgot your password? Please contact your municipal system
+              administrator for assistance.
+            </p>
           </div>
 
           <button
@@ -111,7 +100,6 @@ function Login({ onLogin, onForgotPassword }) {
         <div className="login-footer">
           <span>Municipal Assets Management System</span>
         </div>
-
       </div>
     </div>
   );

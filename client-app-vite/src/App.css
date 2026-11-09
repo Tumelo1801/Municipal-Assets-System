@@ -19,11 +19,11 @@
   max-width: 1440px;
   min-height: 82px;
   margin: 0 auto;
-  padding: 12px 5%;
+  padding: 12px 4%;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 28px;
+  gap: 20px;
 }
 
 .brand {
@@ -36,6 +36,7 @@
   color: #ffffff;
   text-align: left;
   flex-shrink: 0;
+  cursor: pointer;
 }
 
 .brand-icon {
@@ -71,6 +72,9 @@
   align-items: center;
   justify-content: center;
   gap: 5px;
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
 }
 
 .nav-link {
@@ -85,6 +89,8 @@
   color: #d7e2ed;
   font-size: 14px;
   font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
   transition: background 0.2s ease, color 0.2s ease;
 }
 
@@ -103,27 +109,32 @@
 }
 
 .header-account {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 16px;
   flex-shrink: 0;
 }
 
 .account-details {
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 10px;
+  padding: 5px;
+  border: none;
+  background: transparent;
+  color: #ffffff;
+  cursor: pointer;
 }
 
 .account-avatar {
-  width: 34px;
-  height: 34px;
+  width: 38px;
+  height: 38px;
   display: grid;
   place-items: center;
   border-radius: 50%;
   background: #36516d;
   color: #ffffff;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .account-name {
@@ -135,22 +146,61 @@
   white-space: nowrap;
 }
 
-.logout-button {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 9px 13px;
-  border: 0;
-  border-radius: 7px;
-  background: #dc4c4c;
-  color: #ffffff;
-  font-size: 13px;
-  font-weight: 600;
-  transition: background 0.2s ease;
+.account-chevron {
+  font-size: 11px;
+  color: #b9c9d9;
 }
 
-.logout-button:hover {
-  background: #c83b3b;
+.account-dropdown {
+  position: absolute;
+  top: calc(100% + 12px);
+  right: 0;
+  width: 240px;
+  background: var(--card-bg, #ffffff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  padding: 8px;
+  z-index: 1000;
+}
+
+.account-dropdown-header {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-bottom: 1px solid var(--border, #e2e8f0);
+  margin-bottom: 6px;
+}
+
+.account-dropdown-header strong {
+  color: var(--text-primary, #243447);
+}
+
+.account-dropdown-header small {
+  color: var(--text-secondary, #8293a5);
+}
+
+.account-dropdown-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-primary, #243447);
+  cursor: pointer;
+  text-align: left;
+}
+
+.account-dropdown-item:hover {
+  background: var(--page-bg, #f4f6f9);
+}
+
+.account-dropdown-item.logout-item {
+  color: #dc3545;
 }
 
 .app-main {
@@ -178,7 +228,8 @@
   text-align: right;
 }
 
-@media (max-width: 1050px) {
+/* Tablet navigation */
+@media (max-width: 950px) {
   .header-inner {
     flex-wrap: wrap;
     gap: 14px;
@@ -186,6 +237,7 @@
 
   .main-navigation {
     order: 3;
+    flex: 0 0 100%;
     width: 100%;
     justify-content: flex-start;
     overflow-x: auto;
@@ -197,6 +249,7 @@
   }
 }
 
+/* Mobile navigation */
 @media (max-width: 600px) {
   .header-inner {
     padding: 14px 18px;

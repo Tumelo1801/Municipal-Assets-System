@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
 
 import AdminDashboard from './components/AdminDashboard.jsx';
@@ -7,8 +7,7 @@ import PublicBooking from './components/PublicBooking.jsx';
 import InspectionForm from './components/InspectionForm.jsx';
 import Reports from './components/Reports.jsx';
 import Login from './components/Login.jsx';
-import ForgotPassword from './components/ForgotPassword.jsx';
-import ResetPassword from './components/ResetPassword.jsx';
+import SystemSettings from './components/SystemSettings.jsx';
 
 import {
   FaBuilding,
@@ -16,13 +15,18 @@ import {
   FaClipboardCheck,
   FaChartBar,
   FaSignOutAlt,
-  FaUser
+  FaUser,
+  FaCog,
+  FaChevronDown
 } from 'react-icons/fa';
 
 function App() {
   const [currentPage, setCurrentPage] = useState('public');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [adminData, setAdminData] = useState(null);
+  const [showAccountMenu, setShowAccountMenu] = useState(false);
+
+  const accountMenuRef = useRef(null);
 
   useEffect(() => {
     const storedAdmin = localStorage.getItem('admin');
@@ -37,16 +41,29 @@ function App() {
         localStorage.removeItem('admin');
       }
     }
-
-    // Open the appropriate password recovery screen from the email link.
-    const path = window.location.pathname;
-
-    if (path === '/forgot-password') {
-      setCurrentPage('forgot-password');
-    } else if (path === '/reset-password') {
-      setCurrentPage('reset-password');
-    }
   }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (
+        accountMenuRef.current &&
+        !accountMenuRef.current.contains(event.target)
+      ) {
+        setShowAccountMenu(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  const navigateTo = (page) => {
+    setCurrentPage(page);
+    setShowAccountMenu(false);
+  };
 
   const handleLogin = (admin) => {
     setAdminData(admin);
@@ -58,38 +75,16 @@ function App() {
     localStorage.removeItem('admin');
     setAdminData(null);
     setIsAuthenticated(false);
+    setShowAccountMenu(false);
     setCurrentPage('public');
     window.history.pushState({}, '', '/');
   };
 
-  // Password recovery pages are public.
-  if (currentPage === 'forgot-password') {
-      return (
-          <ForgotPassword
-              onBackToLogin={() => setCurrentPage('admin')}
-          />
-      );
-  }
-
-  // ResetPassword will be added in the next step.
- if (currentPage === 'reset-password') {
-      return (
-          <ResetPassword
-              onBackToLogin={() => setCurrentPage('admin')}
-          />
-      );
-  }
-
   if (
-    ['admin', 'inspection', 'reports'].includes(currentPage) &&
+    ['admin', 'inspection', 'reports', 'settings'].includes(currentPage) &&
     !isAuthenticated
   ) {
-    return (
-      <Login
-        onLogin={handleLogin}
-        onForgotPassword={() => setCurrentPage('forgot-password')}
-      />
-    );
+    return <Login onLogin={handleLogin} />;
   }
 
   const navigationItems = [
@@ -106,7 +101,7 @@ function App() {
           <button
             className="brand"
             onClick={() => {
-              setCurrentPage('public');
+              navigateTo('public');
               window.history.pushState({}, '', '/');
             }}
             aria-label="Go to public booking"
@@ -126,7 +121,7 @@ function App() {
               <button
                 key={id}
                 className={`nav-link ${currentPage === id ? 'active' : ''}`}
-                onClick={() => setCurrentPage(id)}
+                onClick={() => navigateTo(id)}
                 aria-current={currentPage === id ? 'page' : undefined}
               >
                 <Icon />
@@ -136,8 +131,14 @@ function App() {
           </nav>
 
           {isAuthenticated && (
-            <div className="header-account">
-              <div className="account-details">
+            <div className="header-account" ref={accountMenuRef}>
+              <button
+                type="button"
+                className="account-details"
+                onClick={() => setShowAccountMenu(!showAccountMenu)}
+                aria-expanded={showAccountMenu}
+                aria-haspopup="true"
+              >
                 <span className="account-avatar">
                   <FaUser />
                 </span>
@@ -145,12 +146,38 @@ function App() {
                 <span className="account-name">
                   {adminData?.fullName || 'Administrator'}
                 </span>
-              </div>
 
-              <button className="logout-button" onClick={handleLogout}>
-                <FaSignOutAlt />
-                <span>Logout</span>
+                <FaChevronDown className="account-chevron" />
               </button>
+
+              {showAccountMenu && (
+                <div className="account-dropdown">
+                  <div className="account-dropdown-header">
+                    <strong>
+                      {adminData?.fullName || 'Administrator'}
+                    </strong>
+                    <small>Administrator account</small>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="account-dropdown-item"
+                    onClick={() => navigateTo('settings')}
+                  >
+                    <FaCog />
+                    <span>System Settings</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className="account-dropdown-item logout-item"
+                    onClick={handleLogout}
+                  >
+                    <FaSignOutAlt />
+                    <span>Logout</span>
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -169,6 +196,10 @@ function App() {
 
         {currentPage === 'reports' && isAuthenticated && (
           <Reports adminData={adminData} />
+        )}
+
+        {currentPage === 'settings' && isAuthenticated && (
+          <SystemSettings adminData={adminData} />
         )}
       </main>
 

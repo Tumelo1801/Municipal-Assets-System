@@ -73,29 +73,29 @@ function Reports() {
     approvedBookings: bookings.filter(b => b.status === 'Approved').length,
     completedBookings: bookings.filter(b => b.status === 'Completed').length,
     rejectedBookings: bookings.filter(b => b.status === 'Rejected').length,
+    unattendedBookings: bookings.filter(b => b.status === 'Unattended').length,
     totalInspections: inspections.length,
     damageReports: inspections.filter(i => i.damagesFound).length
   }), [facilities, bookings, inspections]);
 
-  const facilityTypeData = useMemo(() => {
-    const counts = {};
-
-    facilities.forEach(facility => {
-      const type = facility.type || 'Unspecified';
-      counts[type] = (counts[type] || 0) + 1;
-    });
-
-    return Object.entries(counts).map(([name, value]) => ({
-      name,
-      value
-    }));
-  }, [facilities]);
+  const facilityBookingDistributionData = useMemo(() => {
+    return facilities
+      .map(facility => ({
+        name: facility.name,
+        value: bookings.filter(
+          booking => Number(booking.facilityId) === Number(facility.id)
+        ).length
+      }))
+      .filter(facility => facility.value > 0)
+      .sort((a, b) => b.value - a.value);
+  }, [facilities, bookings]);
 
   const bookingStatusData = useMemo(() => [
     { name: 'Pending', value: statistics.pendingBookings },
     { name: 'Approved', value: statistics.approvedBookings },
     { name: 'Completed', value: statistics.completedBookings },
-    { name: 'Rejected', value: statistics.rejectedBookings }
+    { name: 'Rejected', value: statistics.rejectedBookings },
+    { name: 'Unattended', value: statistics.unattendedBookings }
   ], [statistics]);
 
   const facilityBookingData = useMemo(() => {
@@ -184,8 +184,11 @@ function Reports() {
         return 'report-status-completed';
       case 'Rejected':
         return 'report-status-rejected';
+       case 'Unattended':
+        return 'report-status-unattended';
       default:
         return 'report-status-default';
+     
     }
   };
 
@@ -260,6 +263,17 @@ function Reports() {
         </article>
 
         <article className="reports-stat-card">
+          <div className="reports-stat-icon">
+            <FaClock />
+          </div>
+          <div>
+            <span>Unattended Bookings</span>
+            <strong>{statistics.unattendedBookings}</strong>
+            <small>Expired without administrator action</small>
+          </div>
+        </article>
+
+        <article className="reports-stat-card">
           <div className="reports-stat-icon"><FaClipboardCheck /></div>
           <div>
             <span>Inspections</span>
@@ -282,18 +296,20 @@ function Reports() {
             <div className="reports-chart-heading">
               <div className="reports-chart-icon"><FaChartPie /></div>
               <div>
-                <h3>Facility Distribution</h3>
-                <p>Facilities grouped by type</p>
+                <h3>Facility Booking Distribution</h3>
+                <p>Bookings distributed across individual facilities</p>
               </div>
             </div>
 
-            {facilityTypeData.length === 0 ? (
-              <div className="reports-chart-empty">No facility data available.</div>
+            {facilityBookingDistributionData.length === 0 ? (
+              <div className="reports-chart-empty">
+                No facility bookings available.
+              </div>
             ) : (
               <ResponsiveContainer width="100%" height={290}>
                 <PieChart>
                   <Pie
-                    data={facilityTypeData}
+                    data={facilityBookingDistributionData}
                     cx="50%"
                     cy="48%"
                     outerRadius={95}
@@ -303,7 +319,7 @@ function Reports() {
                       `${name} ${(percent * 100).toFixed(0)}%`
                     }
                   >
-                    {facilityTypeData.map((entry, index) => (
+                    {facilityBookingDistributionData.map((entry, index) => (
                       <Cell
                         key={entry.name}
                         fill={COLORS[index % COLORS.length]}
