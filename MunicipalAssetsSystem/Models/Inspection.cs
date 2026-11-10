@@ -9,7 +9,7 @@
         public string InspectorName { get; set; } = string.Empty;
         public string InspectorContact { get; set; } = string.Empty;
 
-        public DateTime InspectionDate { get; set; } = DateTime.Now;
+        public DateTime InspectionDate { get; set; } = DateTime.UtcNow;
 
         public string ConditionBefore { get; set; } = string.Empty;
         public string ConditionAfter { get; set; } = string.Empty;

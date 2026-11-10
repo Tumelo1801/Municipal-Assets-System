@@ -18,7 +18,7 @@
         public int ExpectedAttendees { get; set; }
 
         public string Status { get; set; } = "Pending"; // Pending, Approved, Rejected, Completed
-        public DateTime RequestDate { get; set; } = DateTime.Now;
+        public DateTime RequestDate { get; set; } = DateTime.UtcNow;
         public string? AdminNotes { get; set; }
     }
 }

@@ -1,6 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using MunicipalAssetsSystem.Data;
 using MunicipalAssetsSystem.Models;
+using MunicipalAssetsSystem.Services;
 
 namespace MunicipalAssetsSystem.Endpoints
 {
@@ -9,6 +10,7 @@ namespace MunicipalAssetsSystem.Endpoints
         public static void MapBookingEndpoints(this WebApplication app)
         {
             var group = app.MapGroup("/api/bookings").WithTags("Bookings");
+
             var adminGroup = group.MapGroup("")
                 .RequireAuthorization();
 
@@ -28,7 +30,9 @@ namespace MunicipalAssetsSystem.Endpoints
                     .Include(b => b.Facility)
                     .FirstOrDefaultAsync(b => b.Id == id);
 
-                return booking is not null ? Results.Ok(booking) : Results.NotFound();
+                return booking is not null
+                    ? Results.Ok(booking)
+                    : Results.NotFound();
             });
 
             // GET: Get bookings by status
@@ -45,37 +49,54 @@ namespace MunicipalAssetsSystem.Endpoints
             group.MapPost("/", async (Booking booking, ApplicationDbContext db) =>
             {
                 booking.Status = "Pending";
-                booking.RequestDate = DateTime.Now;
+
+                // Preserve the intended South African booking calendar date.
+                booking.BookingDate =
+                    SouthAfricanTime.ToLocalDate(booking.BookingDate);
+
+                // Store the request timestamp in UTC.
+                booking.RequestDate = DateTime.UtcNow;
 
                 db.Bookings.Add(booking);
-                await db.SaveChangesAsync();
-                return Results.Created($"/api/bookings/{booking.Id}", booking);
-            });
-
-            // PUT: Update booking status (Approve/Reject)
-            adminGroup.MapPut("/{id}/status", async (int id, string status, string? adminNotes, ApplicationDbContext db) =>
-            {
-                var booking = await db.Bookings.FindAsync(id);
-                if (booking is null) return Results.NotFound();
-
-                booking.Status = status;
-                booking.AdminNotes = adminNotes;
 
                 await db.SaveChangesAsync();
-                return Results.Ok(booking);
+
+                return Results.Created(
+                    $"/api/bookings/{booking.Id}",
+                    booking);
             });
+
+            // PUT: Update booking status
+            adminGroup.MapPut("/{id}/status",
+                async (int id, string status, string? adminNotes, ApplicationDbContext db) =>
+                {
+                    var booking = await db.Bookings.FindAsync(id);
+
+                    if (booking is null)
+                        return Results.NotFound();
+
+                    booking.Status = status;
+                    booking.AdminNotes = adminNotes;
+
+                    await db.SaveChangesAsync();
+
+                    return Results.Ok(booking);
+                });
 
             // DELETE: Delete booking
             adminGroup.MapDelete("/{id}", async (int id, ApplicationDbContext db) =>
             {
                 var booking = await db.Bookings.FindAsync(id);
-                if (booking is null) return Results.NotFound();
+
+                if (booking is null)
+                    return Results.NotFound();
 
                 db.Bookings.Remove(booking);
+
                 await db.SaveChangesAsync();
+
                 return Results.NoContent();
             });
         }
-
     }
 }

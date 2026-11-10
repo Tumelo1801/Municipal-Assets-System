@@ -4,12 +4,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using MunicipalAssetsSystem.Data;
 using MunicipalAssetsSystem.Endpoints;
-using System.Text;
 using MunicipalAssetsSystem.Services;
-
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
-
 
 // Configure backend port
 var port = Environment.GetEnvironmentVariable("PORT") ??
@@ -17,20 +15,72 @@ var port = Environment.GetEnvironmentVariable("PORT") ??
 
 builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 
-
-// Database configuration
-var databasePath = Environment.GetEnvironmentVariable("DATABASE_PATH")
-                   ?? "municipal_assets.db";
-
-var databaseDirectory = Path.GetDirectoryName(databasePath);
-
-if (!string.IsNullOrWhiteSpace(databaseDirectory))
+// Run the one-time SQLite to Neon data transfer when requested.
+if (args.Contains("--migrate-sqlite-to-neon"))
 {
-    Directory.CreateDirectory(databaseDirectory);
+    var neonConnectionString =
+        builder.Configuration.GetConnectionString("Neon");
+
+    if (string.IsNullOrWhiteSpace(neonConnectionString))
+    {
+        throw new InvalidOperationException(
+            "Neon connection string is missing from User Secrets.");
+    }
+
+    var sqlitePath = Path.Combine(
+        builder.Environment.ContentRootPath,
+        "municipal_assets.db");
+
+    if (!File.Exists(sqlitePath))
+    {
+        throw new FileNotFoundException(
+            "The SQLite database was not found.", sqlitePath);
+    }
+
+    await SqliteToNeonMigrator.RunAsync(
+        sqlitePath,
+        neonConnectionString);
+
+    return;
 }
 
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlite($"Data Source={databasePath}"));
+// Database configuration
+var usePostgres = builder.Environment.IsProduction();
+
+if (usePostgres)
+{
+    var connectionString =
+        builder.Configuration.GetConnectionString("Neon");
+
+    if (string.IsNullOrWhiteSpace(connectionString))
+    {
+        throw new InvalidOperationException(
+            "Neon connection string is missing. Configure ConnectionStrings:Neon.");
+    }
+
+    builder.Services.AddDbContext<PostgresApplicationDbContext>(
+        options => options.UseNpgsql(connectionString));
+
+    // Make the PostgreSQL context available wherever
+    // ApplicationDbContext is required.
+    builder.Services.AddScoped<ApplicationDbContext>(serviceProvider =>
+        serviceProvider.GetRequiredService<PostgresApplicationDbContext>());
+}
+else
+{
+    var databasePath = Environment.GetEnvironmentVariable("DATABASE_PATH")
+                       ?? "municipal_assets.db";
+
+    var databaseDirectory = Path.GetDirectoryName(databasePath);
+
+    if (!string.IsNullOrWhiteSpace(databaseDirectory))
+    {
+        Directory.CreateDirectory(databaseDirectory);
+    }
+
+    builder.Services.AddDbContext<ApplicationDbContext>(options =>
+        options.UseSqlite($"Data Source={databasePath}"));
+}
 
 // JWT configuration
 var jwtSecret = builder.Configuration["Jwt:Secret"];
@@ -70,25 +120,36 @@ builder.Services
 builder.Services.AddAuthorization();
 
 // CORS configuration
+var allowedOrigins = new List<string>
+{
+    "http://localhost:5173",
+    "http://localhost:5174",
+    "http://localhost:5175",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:5174",
+    "http://127.0.0.1:5175"
+};
+
+// Add deployed frontend URL from configuration
+var frontendUrl = builder.Configuration["Frontend:BaseUrl"];
+
+if (!string.IsNullOrWhiteSpace(frontendUrl))
+{
+    allowedOrigins.Add(frontendUrl.TrimEnd('/'));
+}
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowReactApp", policy =>
     {
         policy
-            .WithOrigins(
-                "http://localhost:5173",
-                "http://localhost:5174",
-                "http://localhost:5175",
-                "http://127.0.0.1:5173",
-                "http://127.0.0.1:5174",
-                "http://127.0.0.1:5175"
-            )
+            .WithOrigins(allowedOrigins.ToArray())
             .AllowAnyHeader()
             .AllowAnyMethod();
     });
 });
 
-// Swagger
+// Swagger and background services
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddHostedService<BookingStatusBackgroundService>();
@@ -98,8 +159,20 @@ var app = builder.Build();
 // Apply pending database migrations before the application starts
 using (var scope = app.Services.CreateScope())
 {
-    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    db.Database.Migrate();
+    if (usePostgres)
+    {
+        var db = scope.ServiceProvider
+            .GetRequiredService<PostgresApplicationDbContext>();
+
+        db.Database.Migrate();
+    }
+    else
+    {
+        var db = scope.ServiceProvider
+            .GetRequiredService<ApplicationDbContext>();
+
+        db.Database.Migrate();
+    }
 }
 
 // Development documentation

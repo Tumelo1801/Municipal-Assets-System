@@ -10,6 +10,6 @@
         public int Capacity { get; set; }
         public string Amenities { get; set; } = string.Empty;
         public string Status { get; set; } = "Available"; // Available, Under Maintenance, Booked
-        public DateTime CreatedDate { get; set; } = DateTime.Now;
+        public DateTime CreatedDate { get; set; } = DateTime.UtcNow;
     }
 }

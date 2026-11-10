@@ -2,14 +2,12 @@
 using MunicipalAssetsSystem.Data;
 using MunicipalAssetsSystem.Models;
 
-
 namespace MunicipalAssetsSystem.Endpoints
 {
     public static class InspectionEndpoints
     {
         public static void MapInspectionEndpoints(this WebApplication app)
         {
-
             var group = app.MapGroup("/api/inspections")
                 .WithTags("Inspections")
                 .RequireAuthorization();
@@ -31,8 +29,10 @@ namespace MunicipalAssetsSystem.Endpoints
                     .Include(i => i.Booking)
                         .ThenInclude(b => b!.Facility)
                     .FirstOrDefaultAsync(i => i.Id == id);
-                    
-                return inspection is not null ? Results.Ok(inspection) : Results.NotFound();
+
+                return inspection is not null
+                    ? Results.Ok(inspection)
+                    : Results.NotFound();
             });
 
             // GET: Get inspections by booking ID
@@ -48,27 +48,34 @@ namespace MunicipalAssetsSystem.Endpoints
             // POST: Create new inspection
             group.MapPost("/", async (Inspection inspection, ApplicationDbContext db) =>
             {
-                inspection.InspectionDate = DateTime.Now;
-                
+                // Store the inspection timestamp in UTC.
+                inspection.InspectionDate = DateTime.UtcNow;
+
                 db.Inspections.Add(inspection);
+
                 await db.SaveChangesAsync();
 
-                // Update booking status to Completed
+                // Update booking status to Completed.
                 var booking = await db.Bookings.FindAsync(inspection.BookingId);
+
                 if (booking is not null)
                 {
                     booking.Status = "Completed";
                     await db.SaveChangesAsync();
                 }
 
-                return Results.Created($"/api/inspections/{inspection.Id}", inspection);
+                return Results.Created(
+                    $"/api/inspections/{inspection.Id}",
+                    inspection);
             });
 
             // PUT: Update inspection
             group.MapPut("/{id}", async (int id, Inspection updatedInspection, ApplicationDbContext db) =>
             {
                 var inspection = await db.Inspections.FindAsync(id);
-                if (inspection is null) return Results.NotFound();
+
+                if (inspection is null)
+                    return Results.NotFound();
 
                 inspection.InspectorName = updatedInspection.InspectorName;
                 inspection.InspectorContact = updatedInspection.InspectorContact;
@@ -80,6 +87,7 @@ namespace MunicipalAssetsSystem.Endpoints
                 inspection.InspectionNotes = updatedInspection.InspectionNotes;
 
                 await db.SaveChangesAsync();
+
                 return Results.Ok(inspection);
             });
 
@@ -87,10 +95,14 @@ namespace MunicipalAssetsSystem.Endpoints
             group.MapDelete("/{id}", async (int id, ApplicationDbContext db) =>
             {
                 var inspection = await db.Inspections.FindAsync(id);
-                if (inspection is null) return Results.NotFound();
+
+                if (inspection is null)
+                    return Results.NotFound();
 
                 db.Inspections.Remove(inspection);
+
                 await db.SaveChangesAsync();
+
                 return Results.NoContent();
             });
         }

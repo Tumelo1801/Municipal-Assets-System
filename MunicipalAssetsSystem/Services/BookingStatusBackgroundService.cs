@@ -1,4 +1,3 @@
-
 using Microsoft.EntityFrameworkCore;
 using MunicipalAssetsSystem.Data;
 
@@ -35,7 +34,6 @@ namespace MunicipalAssetsSystem.Services
             }
         }
 
-       
         private async Task UpdateExpiredBookings(
             CancellationToken stoppingToken)
         {
@@ -46,22 +44,28 @@ namespace MunicipalAssetsSystem.Services
                 var db = scope.ServiceProvider
                     .GetRequiredService<ApplicationDbContext>();
 
-                var now = DateTime.Now;
+                // Use South African local time for booking comparisons.
+                var now = SouthAfricanTime.Now;
 
-                // Retrieve pending bookings first.
                 var pendingBookings = await db.Bookings
                     .Where(b => b.Status == "Pending")
                     .ToListAsync(stoppingToken);
 
-                // Calculate expiry in C# rather than SQL.
                 var expiredBookings = pendingBookings
                     .Where(b =>
-                        b.BookingDate.Date + b.EndTime < now)
+                    {
+                        var bookingEnd = DateTime.SpecifyKind(
+                            b.BookingDate.Date + b.EndTime,
+                            DateTimeKind.Unspecified);
+
+                        return bookingEnd < now;
+                    })
                     .ToList();
 
                 foreach (var booking in expiredBookings)
                 {
                     booking.Status = "Unattended";
+
                     booking.AdminNotes =
                         "Automatically marked as unattended because the booking time passed without administrator action.";
                 }
@@ -88,6 +92,5 @@ namespace MunicipalAssetsSystem.Services
                     "Error updating expired booking statuses.");
             }
         }
-
     }
 }
